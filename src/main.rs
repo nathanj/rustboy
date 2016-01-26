@@ -33,7 +33,10 @@ struct Cpu {
 
 impl fmt::Debug for Cpu {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Cpu {{ a: {:#04x}, f: {:#04x}, }}", self.a, self.f)
+        write!(f, "Cpu {{ a:{:02x} f:{:02x} b:{:02x} c:{:02x} d:{:02x} \
+               e:{:02x} h:{:02x} l:{:02x} pc:{:06x} sp:{:06x} cycles:{} }}",
+               self.a, self.f, self.b, self.c, self.d, self.e, self.h, self.l,
+               self.pc, self.sp, self.cycles)
     }
 }
 
