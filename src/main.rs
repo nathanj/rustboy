@@ -3,12 +3,57 @@ extern crate sdl2;
 use std::io::prelude::*;
 use std::fs::File;
 use std::env;
+use std::fmt;
 
 use sdl2::pixels::Color;
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::render::Texture;
+
+struct Gameboy {
+    cpu: Cpu,
+    vram: [u8; 0x2000],
+    eram: [u8; 0x2000],
+}
+
+struct Cpu {
+    a: u8,
+    f: u8,
+    b: u8,
+    c: u8,
+    d: u8,
+    e: u8,
+    h: u8,
+    l: u8,
+    pc: u16,
+    sp: u16,
+    cycles: u32,
+}
+
+impl fmt::Debug for Cpu {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Cpu {{ a: {:#04x}, f: {:#04x}, }}", self.a, self.f)
+    }
+}
+
+impl Cpu {
+    fn new() -> Cpu {
+        Cpu {
+            a: 0x01,
+            f: 0xb0,
+            b: 0x00,
+            c: 0x13,
+            d: 0x00,
+            e: 0xd8,
+            h: 0x00,
+            l: 0x00,
+            sp: 0xfffe,
+            pc: 0x100,
+            cycles: 0,
+        }
+    }
+}
 
 fn main() {
     let filename = env::args().nth(1).unwrap();
@@ -37,6 +82,10 @@ fn main() {
     renderer.present();
 
     let pitch = 160;
+
+    let cpu = Cpu::new();
+
+    println!("cpu = {:?}", cpu);
 
     pixels[10100] = 10;
     pixels[10101] = 20;
