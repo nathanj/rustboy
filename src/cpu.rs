@@ -248,6 +248,149 @@ impl Cpu {
                 self.cycles += 4;
                 pc += 1;
             },
+            0x10 => {
+                trace!("stop");
+                // TODO
+                self.cycles += 4;
+                pc += 2;
+            },
+            0x11 => {
+                let val = self.read_u16(&rom, pc + 1);
+                trace!("ld de, ${:04x}", val);
+                self.set_de(val);
+                self.cycles += 12;
+                pc += 3;
+            },
+            0x12 => {
+                trace!("ld (de), a");
+                mmap_write(self.de(), self.a);
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x13 => {
+                trace!("inc de");
+                let de = self.de();
+                self.set_de(de + 1);
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x14 => {
+                trace!("inc d");
+                self.d += 1;
+                let d = self.d;
+                self.set_zero(d == 0);
+                self.set_subtract(false);
+                self.set_half_carry(d & 0xf == 0);
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x15 => {
+                trace!("dec d");
+                self.d -= 1;
+                let d = self.d;
+                self.set_zero(d == 0);
+                self.set_subtract(true);
+                self.set_half_carry(d & 0xf == 0xf);
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x16 => {
+                let val = rom[pc + 1];
+                trace!("ld d, ${:02x} (#{})", val, val);
+                self.d = val;
+                self.cycles += 8;
+                pc += 2;
+            },
+            0x17 => {
+                trace!("rla");
+                // TODO
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x18 => {
+                let val = rom[pc + 1];
+                trace!("jr #{:02x}", val);
+                pc += val;
+                self.cycles += 12;
+                pc += 2;
+            },
+            0x19 => {
+                trace!("add hl, de");
+                let de = self.de();
+                let hl = self.hl();
+                self.set_hl(hl + de);
+                self.set_subtract(false);
+                self.set_half_carry(false);
+                self.set_carry(false /* TODO */);
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x1a => {
+                trace!("ld a, (de)");
+                self.a = mmap_read(self.de());
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x1b => {
+                trace!("dec de");
+                let de = self.de();
+                self.set_de(de - 1);
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x1c => {
+                trace!("inc e");
+                self.e += 1;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x1d => {
+                trace!("dec e");
+                self.e -= 1;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x1e => {
+                let val = rom[pc + 1];
+                trace!("ld e, ${:02x}", val);
+                self.e = val;
+                self.cycles += 8;
+                pc += 2;
+            },
+            0x1f => {
+                trace!("rra");
+                // TODO
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x21 => {
+                let val = self.read_u16(&rom, pc + 1);
+                trace!("ld hl, ${:04x}", val);
+                self.set_hl(val);
+                self.cycles += 12;
+                pc += 3;
+            },
+            0x23 => {
+                trace!("inc hl");
+                let hl = self.hl();
+                self.set_hl(hl + 1);
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x31 => {
+                let val = self.read_u16(&rom, pc + 1);
+                trace!("ld sp, ${:04x}", val);
+                self.set_sp(val);
+                self.cycles += 12;
+                pc += 3;
+            },
+            0x33 => {
+                trace!("inc sp");
+                let sp = self.sp();
+                self.set_sp(sp + 1);
+                self.cycles += 8;
+                pc += 1;
+            },
             _ => panic!("unknown instruction {:02x} @ pc={:04x}", rom[pc], pc),
         }
         self.pc = pc as u16
