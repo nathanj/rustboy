@@ -310,7 +310,7 @@ impl Cpu {
             0x18 => {
                 let val = rom[pc + 1];
                 trace!("jr #{:02x}", val);
-                pc += val;
+                pc += val as usize;
                 self.cycles += 12;
                 pc += 2;
             },
@@ -363,12 +363,31 @@ impl Cpu {
                 self.cycles += 4;
                 pc += 1;
             },
+            0x20 => {
+                let val = rom[pc + 1];
+                trace!("jr nz, #{:02x}", val);
+                if !self.zero() {
+                    pc += val as usize;
+                    self.cycles += 12;
+                } else {
+                    self.cycles += 8;
+                }
+                pc += 2;
+            },
             0x21 => {
                 let val = self.read_u16(&rom, pc + 1);
                 trace!("ld hl, ${:04x}", val);
                 self.set_hl(val);
                 self.cycles += 12;
                 pc += 3;
+            },
+            0x22 => {
+                trace!("ld (hl+), a");
+                let hl = self.hl();
+                mmap_write(hl, self.a);
+                self.set_hl(hl + 1);
+                self.cycles += 8;
+                pc += 1;
             },
             0x23 => {
                 trace!("inc hl");
@@ -377,17 +396,110 @@ impl Cpu {
                 self.cycles += 8;
                 pc += 1;
             },
+            0x24 => {
+                trace!("inc h");
+                self.h += 1;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x25 => {
+                trace!("dec h");
+                self.h -= 1;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x26 => {
+                let val = rom[pc + 1];
+                trace!("ld h, ${:02x}", val);
+                self.h = val;
+                self.cycles += 8;
+                pc += 2;
+            },
+            0x27 => {
+                trace!("daa");
+                // TODO
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x28 => {
+                let val = rom[pc + 1];
+                trace!("jr z, ${:02x}", val);
+                if self.zero() {
+                    pc += val as usize;
+                    self.cycles += 12;
+                } else {
+                    self.cycles += 8;
+                }
+                pc += 2;
+            },
+            0x29 => {
+                trace!("add hl, hl");
+                let hl = self.hl();
+                self.set_hl(hl + hl);
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x2a => {
+                trace!("ld a, (hl+)");
+                let hl = self.hl();
+                self.a = mmap_read(hl);
+                self.set_hl(hl + 1);
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x2b => {
+                trace!("dec hl");
+                let hl = self.hl();
+                self.set_hl(hl - 1);
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x2c => {
+                trace!("inc l");
+                self.l += 1;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x2d => {
+                trace!("dec l");
+                self.l -= 1;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x2e => {
+                let val = rom[pc + 1];
+                trace!("ld l, #{:02x}", val);
+                self.l = val;
+                self.cycles += 8;
+                pc += 2;
+            },
+            0x2f => {
+                trace!("cpl");
+                self.a = !self.a;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x30 => {
+                let val = rom[pc + 1];
+                trace!("jr nc, #{:02x}", val);
+                if !self.carry() {
+                    pc += val as usize;
+                    self.cycles += 12;
+                } else {
+                    self.cycles += 8;
+                }
+                pc += 2;
+            },
             0x31 => {
                 let val = self.read_u16(&rom, pc + 1);
                 trace!("ld sp, ${:04x}", val);
-                self.set_sp(val);
+                self.sp = val;
                 self.cycles += 12;
                 pc += 3;
             },
             0x33 => {
                 trace!("inc sp");
-                let sp = self.sp();
-                self.set_sp(sp + 1);
+                self.sp += 1;
                 self.cycles += 8;
                 pc += 1;
             },
