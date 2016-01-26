@@ -5,3 +5,5 @@ authors = ["Nathan Jones <nathanj439@gmail.com>"]
 
 [dependencies]
 sdl2 = "0.12"
+log = "0.3.5"
+env_logger = "0.3.2"

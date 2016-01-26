@@ -1,3 +1,5 @@
+#[macro_use] extern crate log;
+extern crate env_logger;
 extern crate sdl2;
 
 use std::io::prelude::*;
@@ -56,9 +58,19 @@ impl Cpu {
             cycles: 0,
         }
     }
+
+    fn run(&mut self, rom: Vec<u8>) {
+        let pc = self.pc as usize;
+        match rom[pc] {
+            0x00 => { trace!("nop"); self.cycles += 4 },
+            _ => panic!("unknown instruction {:02x} @ pc={:04x}", rom[pc], pc),
+        }
+    }
 }
 
 fn main() {
+    env_logger::init().unwrap();
+
     let filename = env::args().nth(1).unwrap();
     let mut f = File::open(&filename).unwrap();
     let mut rom = Vec::new();
@@ -86,8 +98,10 @@ fn main() {
 
     let pitch = 160;
 
-    let cpu = Cpu::new();
+    let mut cpu = Cpu::new();
 
+    println!("cpu = {:?}", cpu);
+    cpu.run(rom);
     println!("cpu = {:?}", cpu);
 
     pixels[10100] = 10;
