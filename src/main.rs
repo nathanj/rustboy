@@ -59,19 +59,64 @@ impl Cpu {
         }
     }
 
-    fn run(&mut self, rom: Vec<u8>) {
-        let pc = self.pc as usize;
+    fn af(&self) -> u16 {
+        return (self.a as u16) << 8 | (self.f as u16);
+    }
+    fn set_af(&mut self, af: u16) {
+        self.a = (af >> 8) as u8;
+        self.f = (af & 0xff) as u8;
+    }
+    fn bc(&self) -> u16 {
+        return (self.b as u16) << 8 | (self.c as u16);
+    }
+    fn set_bc(&mut self, bc: u16) {
+        self.b = (bc >> 8) as u8;
+        self.c = (bc & 0xff) as u8;
+    }
+    fn de(&self) -> u16 {
+        return (self.d as u16) << 8 | (self.e as u16);
+    }
+    fn set_de(&mut self, de: u16) {
+        self.d = (de >> 8) as u8;
+        self.e = (de & 0xff) as u8;
+    }
+    fn hl(&self) -> u16 {
+        return (self.h as u16) << 8 | (self.l as u16);
+    }
+    fn set_hl(&mut self, hl: u16) {
+        self.h = (hl >> 8) as u8;
+        self.l = (hl & 0xff) as u8;
+    }
+
+    fn read_u16(&self, rom: &Vec<u8>, pos: usize) -> u16 {
+        return (rom[pos + 1] as u16) << 8 | (rom[pos] as u16);
+    }
+
+    fn run(&mut self, rom: &Vec<u8>) {
+        let mut pc = self.pc as usize;
         match rom[pc] {
-            0x00 => { trace!("nop"); self.cycles += 4 },
+            0x00 => {
+                trace!("nop");
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x01 => {
+                let val = self.read_u16(&rom, pc + 1);
+                trace!("ld bc, ${}", val);
+                self.set_bc(val);
+                self.cycles += 12;
+                pc += 3;
+            },
             _ => panic!("unknown instruction {:02x} @ pc={:04x}", rom[pc], pc),
         }
+        self.pc = pc as u16
     }
 }
 
 fn main() {
     env_logger::init().unwrap();
 
-    let filename = env::args().nth(1).unwrap();
+    let filename = env::args().nth(1).unwrap_or_else(|| panic!("must pass a rom"));
     let mut f = File::open(&filename).unwrap();
     let mut rom = Vec::new();
     let size = f.read_to_end(&mut rom).unwrap();
@@ -101,7 +146,7 @@ fn main() {
     let mut cpu = Cpu::new();
 
     println!("cpu = {:?}", cpu);
-    cpu.run(rom);
+    cpu.run(&rom);
     println!("cpu = {:?}", cpu);
 
     pixels[10100] = 10;
@@ -135,4 +180,30 @@ fn main() {
         }
         // The rest of the game loop goes here...
     }
+}
+
+#[test]
+fn test_cpu() {
+    let mut cpu = Cpu::new();
+
+    cpu.set_af(0x2343);
+    assert_eq!(cpu.a, 0x23);
+    assert_eq!(cpu.f, 0x43);
+    assert_eq!(cpu.af(), 0x2343);
+    cpu.set_bc(0x5432);
+    assert_eq!(cpu.b, 0x54);
+    assert_eq!(cpu.c, 0x32);
+    assert_eq!(cpu.bc(), 0x5432);
+    cpu.set_de(0x9988);
+    assert_eq!(cpu.d, 0x99);
+    assert_eq!(cpu.e, 0x88);
+    assert_eq!(cpu.de(), 0x9988);
+    cpu.set_hl(0x8743);
+    assert_eq!(cpu.h, 0x87);
+    assert_eq!(cpu.l, 0x43);
+    assert_eq!(cpu.hl(), 0x8743);
+
+    let rom = vec![0x00, 0x01, 0x23, 0x45];
+    assert_eq!(cpu.read_u16(&rom, 0), 0x0100);
+    assert_eq!(cpu.read_u16(&rom, 2), 0x4523);
 }
