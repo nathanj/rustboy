@@ -497,10 +497,482 @@ impl Cpu {
                 self.cycles += 12;
                 pc += 3;
             },
+            0x32 => {
+                trace!("ld (hl-), a");
+                let hl = self.hl();
+                mmap_write(hl, self.a);
+                self.set_hl(hl - 1);
+                self.cycles += 8;
+                pc += 1;
+            },
             0x33 => {
                 trace!("inc sp");
                 self.sp += 1;
                 self.cycles += 8;
+                pc += 1;
+            },
+            0x34 => {
+                trace!("inc (hl)");
+                let hl = self.hl();
+                mmap_write(hl, mmap_read(hl) + 1);
+                self.cycles += 12;
+                pc += 1;
+            },
+            0x35 => {
+                trace!("dec (hl)");
+                let hl = self.hl();
+                mmap_write(hl, mmap_read(hl) - 1);
+                self.cycles += 12;
+                pc += 1;
+            },
+            0x36 => {
+                let val = rom[pc + 1];
+                trace!("ld (hl), #{:02x}", val);
+                mmap_write(self.hl(), val);
+                self.cycles += 12;
+                pc += 1;
+            },
+            0x37 => {
+                trace!("scf");
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x38 => {
+                let val = rom[pc + 1];
+                trace!("jr c, #{:02x}", val);
+                if self.carry() {
+                    pc += val as usize;
+                    self.cycles += 12;
+                } else {
+                    self.cycles += 8;
+                }
+                pc += 2;
+            },
+            0x39 => {
+                trace!("add hl, sp");
+                let hl = self.hl();
+                let sp = self.sp;
+                self.set_hl(hl + sp);
+                self.cycles += 8;
+                pc += 2;
+            },
+            0x3a => {
+                trace!("ld a, (hl-)");
+                self.a = mmap_read(self.hl());
+                let hl = self.hl();
+                self.set_hl(hl - 1);
+                self.cycles += 8;
+                pc += 2;
+            },
+            0x3b => {
+                trace!("dec sp");
+                self.sp -= 1;
+                self.cycles += 8;
+                pc += 2;
+            },
+            0x3c => {
+                trace!("inc a");
+                self.a += 1;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x3d => {
+                trace!("dec a");
+                self.a -= 1;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x3e => {
+                let val = rom[pc + 1];
+                trace!("ld a, #{:02x}", val);
+                self.a = val;
+                self.cycles += 8;
+                pc += 2;
+            },
+            0x3f => {
+                trace!("ccf");
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x40 => {
+                trace!("ld b, b");
+                self.b = self.b;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x41 => {
+                trace!("ld b, c");
+                self.b = self.c;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x42 => {
+                trace!("ld b, d");
+                self.b = self.d;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x43 => {
+                trace!("ld b, e");
+                self.b = self.e;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x44 => {
+                trace!("ld b, h");
+                self.b = self.h;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x45 => {
+                trace!("ld b, l");
+                self.b = self.l;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x46 => {
+                trace!("ld b, (hl)");
+                self.b = mmap_read(self.hl());
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x47 => {
+                trace!("ld b, a");
+                self.b = self.a;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x48 => {
+                trace!("ld c, b");
+                self.c = self.b;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x49 => {
+                trace!("ld c, c");
+                self.c = self.c;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x4a => {
+                trace!("ld c, d");
+                self.c = self.d;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x4b => {
+                trace!("ld c, e");
+                self.c = self.e;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x4c => {
+                trace!("ld c, h");
+                self.c = self.h;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x4d => {
+                trace!("ld c, l");
+                self.c = self.l;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x4e => {
+                trace!("ld c, (hl)");
+                self.c = mmap_read(self.hl());
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x4f => {
+                trace!("ld c, a");
+                self.c = self.a;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x50 => {
+                trace!("ld c, b");
+                self.c = self.b;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x51 => {
+                trace!("ld c, c");
+                self.c = self.c;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x52 => {
+                trace!("ld c, d");
+                self.c = self.d;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x53 => {
+                trace!("ld c, e");
+                self.c = self.e;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x54 => {
+                trace!("ld c, h");
+                self.c = self.h;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x55 => {
+                trace!("ld c, l");
+                self.c = self.l;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x56 => {
+                trace!("ld c, (hl)");
+                self.c = mmap_read(self.hl());
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x57 => {
+                trace!("ld c, a");
+                self.c = self.a;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x58 => {
+                trace!("ld e, b");
+                self.e = self.b;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x59 => {
+                trace!("ld e, c");
+                self.e = self.c;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x5a => {
+                trace!("ld e, d");
+                self.e = self.d;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x5b => {
+                trace!("ld e, e");
+                self.e = self.e;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x5c => {
+                trace!("ld e, h");
+                self.e = self.h;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x5d => {
+                trace!("ld e, l");
+                self.e = self.l;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x5e => {
+                trace!("ld e, (hl)");
+                self.e = mmap_read(self.hl());
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x5f => {
+                trace!("ld e, a");
+                self.e = self.a;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x60 => {
+                trace!("ld h, b");
+                self.h = self.b;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x61 => {
+                trace!("ld h, c");
+                self.h = self.c;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x62 => {
+                trace!("ld h, d");
+                self.h = self.d;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x63 => {
+                trace!("ld h, e");
+                self.h = self.e;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x64 => {
+                trace!("ld h, h");
+                self.h = self.h;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x65 => {
+                trace!("ld h, l");
+                self.h = self.l;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x66 => {
+                trace!("ld h, (hl)");
+                self.h = mmap_read(self.hl());
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x67 => {
+                trace!("ld h, a");
+                self.h = self.a;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x68 => {
+                trace!("ld l, b");
+                self.l = self.b;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x69 => {
+                trace!("ld l, c");
+                self.l = self.c;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x6a => {
+                trace!("ld l, d");
+                self.l = self.d;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x6b => {
+                trace!("ld l, e");
+                self.l = self.e;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x6c => {
+                trace!("ld l, h");
+                self.l = self.h;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x6d => {
+                trace!("ld l, l");
+                self.l = self.l;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x6e => {
+                trace!("ld l, (hl)");
+                self.l = mmap_read(self.hl());
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x6f => {
+                trace!("ld l, a");
+                self.l = self.a;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x70 => {
+                trace!("ld (hl), b");
+                mmap_write(self.hl(), self.b);
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x71 => {
+                trace!("ld (hl), c");
+                mmap_write(self.hl(), self.c);
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x72 => {
+                trace!("ld (hl), d");
+                mmap_write(self.hl(), self.d);
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x73 => {
+                trace!("ld (hl), e");
+                mmap_write(self.hl(), self.e);
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x74 => {
+                trace!("ld (hl), h");
+                mmap_write(self.hl(), self.h);
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x75 => {
+                trace!("ld (hl), l");
+                mmap_write(self.hl(), self.l);
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x76 => {
+                panic!("halt");
+            },
+            0x77 => {
+                trace!("ld (hl), a");
+                mmap_write(self.hl(), self.a);
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x78 => {
+                trace!("ld a, b");
+                self.a = self.b;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x79 => {
+                trace!("ld a, c");
+                self.a = self.c;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x7a => {
+                trace!("ld a, d");
+                self.a = self.d;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x7b => {
+                trace!("ld a, e");
+                self.a = self.e;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x7c => {
+                trace!("ld a, h");
+                self.a = self.h;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x7d => {
+                trace!("ld a, l");
+                self.a = self.l;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x7e => {
+                trace!("ld a, (hl)");
+                self.a = mmap_read(self.hl());
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x7f => {
+                trace!("ld a, a");
+                self.a = self.a;
+                self.cycles += 4;
                 pc += 1;
             },
             _ => panic!("unknown instruction {:02x} @ pc={:04x}", rom[pc], pc),
