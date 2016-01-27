@@ -975,6 +975,390 @@ impl Cpu {
                 self.cycles += 4;
                 pc += 1;
             },
+            0x80 => {
+                trace!("add b");
+                self.a += self.b;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x81 => {
+                trace!("add c");
+                self.a += self.c;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x82 => {
+                trace!("add d");
+                self.a += self.d;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x83 => {
+                trace!("add e");
+                self.a += self.e;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x84 => {
+                trace!("add h");
+                self.a += self.h;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x85 => {
+                trace!("add l");
+                self.a += self.l;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x86 => {
+                trace!("add (hl)");
+                self.a += mmap_read(self.hl());
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x87 => {
+                trace!("add a");
+                self.a += self.a;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x88 => {
+                trace!("adc b");
+                self.a += self.b;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x89 => {
+                trace!("adc c");
+                self.a += self.c;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x8a => {
+                trace!("adc d");
+                self.a += self.d;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x8b => {
+                trace!("adc e");
+                self.a += self.e;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x8c => {
+                trace!("adc h");
+                self.a += self.h;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x8d => {
+                trace!("adc l");
+                self.a += self.l;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x8e => {
+                trace!("adc (hl)");
+                self.a += mmap_read(self.hl());
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x8f => {
+                trace!("adc a");
+                self.a += self.a;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x90 => {
+                trace!("sub b");
+                self.a += self.b;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x91 => {
+                trace!("sub c");
+                self.a += self.c;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x92 => {
+                trace!("sub d");
+                self.a += self.d;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x93 => {
+                trace!("sub e");
+                self.a += self.e;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x94 => {
+                trace!("sub h");
+                self.a += self.h;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x95 => {
+                trace!("sub l");
+                self.a += self.l;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x96 => {
+                trace!("sub (hl)");
+                self.a += mmap_read(self.hl());
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x97 => {
+                trace!("sub a");
+                self.a += self.a;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x98 => {
+                trace!("sbc b");
+                self.a += self.b;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x99 => {
+                trace!("sbc c");
+                self.a += self.c;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x9a => {
+                trace!("sbc d");
+                self.a += self.d;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x9b => {
+                trace!("sbc e");
+                self.a += self.e;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x9c => {
+                trace!("sbc h");
+                self.a += self.h;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x9d => {
+                trace!("sbc l");
+                self.a += self.l;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0x9e => {
+                trace!("sbc (hl)");
+                self.a += mmap_read(self.hl());
+                self.cycles += 8;
+                pc += 1;
+            },
+            0x9f => {
+                trace!("sbc a");
+                self.a += self.a;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xa0 => {
+                trace!("and b");
+                self.a += self.b;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xa1 => {
+                trace!("and c");
+                self.a += self.c;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xa2 => {
+                trace!("and d");
+                self.a += self.d;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xa3 => {
+                trace!("and e");
+                self.a += self.e;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xa4 => {
+                trace!("and h");
+                self.a += self.h;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xa5 => {
+                trace!("and l");
+                self.a += self.l;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xa6 => {
+                trace!("and (hl)");
+                self.a += mmap_read(self.hl());
+                self.cycles += 8;
+                pc += 1;
+            },
+            0xa7 => {
+                trace!("and a");
+                self.a += self.a;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xa8 => {
+                trace!("xor b");
+                self.a += self.b;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xa9 => {
+                trace!("xor c");
+                self.a += self.c;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xaa => {
+                trace!("xor d");
+                self.a += self.d;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xab => {
+                trace!("xor e");
+                self.a += self.e;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xac => {
+                trace!("xor h");
+                self.a += self.h;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xad => {
+                trace!("xor l");
+                self.a += self.l;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xae => {
+                trace!("xor (hl)");
+                self.a += mmap_read(self.hl());
+                self.cycles += 8;
+                pc += 1;
+            },
+            0xaf => {
+                trace!("xor a");
+                self.a += self.a;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xb0 => {
+                trace!("or b");
+                self.a += self.b;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xb1 => {
+                trace!("or c");
+                self.a += self.c;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xb2 => {
+                trace!("or d");
+                self.a += self.d;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xb3 => {
+                trace!("or e");
+                self.a += self.e;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xb4 => {
+                trace!("or h");
+                self.a += self.h;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xb5 => {
+                trace!("or l");
+                self.a += self.l;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xb6 => {
+                trace!("or (hl)");
+                self.a += mmap_read(self.hl());
+                self.cycles += 8;
+                pc += 1;
+            },
+            0xb7 => {
+                trace!("or a");
+                self.a += self.a;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xb8 => {
+                trace!("cp b");
+                self.a += self.b;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xb9 => {
+                trace!("cp c");
+                self.a += self.c;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xba => {
+                trace!("cp d");
+                self.a += self.d;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xbb => {
+                trace!("cp e");
+                self.a += self.e;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xbc => {
+                trace!("cp h");
+                self.a += self.h;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xbd => {
+                trace!("cp l");
+                self.a += self.l;
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xbe => {
+                trace!("cp (hl)");
+                self.a += mmap_read(self.hl());
+                self.cycles += 8;
+                pc += 1;
+            },
+            0xbf => {
+                trace!("cp a");
+                self.a += self.a;
+                self.cycles += 4;
+                pc += 1;
+            },
             _ => panic!("unknown instruction {:02x} @ pc={:04x}", rom[pc], pc),
         }
         self.pc = pc as u16
