@@ -221,6 +221,12 @@ impl Cpu {
         //self.set_carry(false);
     }
 
+    fn write_return_addr(&mut self, mm: &mut MemoryMap, addr: u16) {
+        mm.write(self.sp - 1, (addr >> 8) as u8);
+        mm.write(self.sp - 2, (addr & 0xff) as u8);
+        self.sp -= 2;
+    }
+
     pub fn run(&mut self, mm: &mut MemoryMap) {
         let mut pc = self.pc as usize;
         match mm.rom[pc] {
@@ -1544,8 +1550,15 @@ impl Cpu {
             0xc4 => {
                 let val = self.read_u16(&mm.rom, pc + 1);
                 trace!("call nz, #{:04x}", val);
-                self.cycles += 12; // 24
-                pc = val as usize;
+                if !self.zero() {
+                    let addr = self.pc + 3;
+                    self.write_return_addr(mm, addr);
+                    self.cycles += 24;
+                    pc = val as usize;
+                } else {
+                    self.cycles += 12;
+                    pc += 3;
+                }
             },
             0xc5 => {
                 trace!("push bc");
@@ -1588,14 +1601,23 @@ impl Cpu {
             0xcc => {
                 let val = self.read_u16(&mm.rom, pc + 1);
                 trace!("call z, #{:04x}", val);
-                self.cycles += 12; // 24
-                pc += 3;
+                if self.zero() {
+                    let addr = self.pc + 3;
+                    self.write_return_addr(mm, addr);
+                    self.cycles += 24;
+                    pc = val as usize;
+                } else {
+                    self.cycles += 12;
+                    pc += 3;
+                }
             },
             0xcd => {
                 let val = self.read_u16(&mm.rom, pc + 1);
                 trace!("call #{:04x}", val);
+                let addr = self.pc + 3;
+                self.write_return_addr(mm, addr);
                 self.cycles += 24;
-                pc += 3;
+                pc = val as usize;
             },
             0xce => {
                 let val = mm.rom[pc + 1];
@@ -1628,8 +1650,15 @@ impl Cpu {
             0xd4 => {
                 let val = self.read_u16(&mm.rom, pc + 1);
                 trace!("call nc, #{:04x}", val);
-                self.cycles += 12; // 24
-                pc += 3;
+                if !self.carry() {
+                    let addr = self.pc + 3;
+                    self.write_return_addr(mm, addr);
+                    self.cycles += 24;
+                    pc = val as usize;
+                } else {
+                    self.cycles += 12;
+                    pc += 3;
+                }
             },
             0xd5 => {
                 trace!("push de");
@@ -1667,8 +1696,15 @@ impl Cpu {
             0xdc => {
                 let val = self.read_u16(&mm.rom, pc + 1);
                 trace!("call c, #{:04x}", val);
-                self.cycles += 12; // 24
-                pc += 3;
+                if self.carry() {
+                    let addr = self.pc + 3;
+                    self.write_return_addr(mm, addr);
+                    self.cycles += 24;
+                    pc = val as usize;
+                } else {
+                    self.cycles += 12;
+                    pc += 3;
+                }
             },
             0xde => {
                 let val = mm.rom[pc + 1];
