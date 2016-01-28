@@ -19,12 +19,6 @@ use sdl2::render::Texture;
 
 mod cpu;
 
-struct Gameboy {
-    cpu: cpu::Cpu,
-    vram: [u8; 0x2000],
-    eram: [u8; 0x2000],
-}
-
 fn main() {
     env_logger::init().unwrap();
 
@@ -55,11 +49,13 @@ fn main() {
 
     let pitch = 160;
 
-    let mut cpu = cpu::Cpu::new();
+    let cpu = cpu::Cpu::new();
+    let mm = cpu::MemoryMap { rom: rom };
+    let mut gb = cpu::Gameboy { cpu: cpu, mm: mm };
 
-    println!("cpu = {:?}", cpu);
-    cpu.run(&rom);
-    println!("cpu = {:?}", cpu);
+    println!("cpu = {:?}", gb.cpu);
+    gb.cpu.run(&mut gb.mm);
+    println!("cpu = {:?}", gb.cpu);
 
     pixels[10100] = 10;
     pixels[10101] = 20;
