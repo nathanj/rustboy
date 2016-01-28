@@ -1359,6 +1359,295 @@ impl Cpu {
                 self.cycles += 4;
                 pc += 1;
             },
+            0xc0 => {
+                trace!("ret nz");
+                self.cycles += 8; // 20
+                pc += 1;
+            },
+            0xc1 => {
+                trace!("pop bc");
+                self.cycles += 12;
+                pc += 1;
+            },
+            0xc2 => {
+                let val = self.read_u16(&rom, pc + 1);
+                trace!("jp nz, #{:04x}", val);
+                self.cycles += 12; // 16
+                pc = val;
+            },
+            0xc3 => {
+                let val = self.read_u16(&rom, pc + 1);
+                trace!("jp #{:04x}", val);
+                self.cycles += 16;
+                pc = val;
+            },
+            0xc4 => {
+                let val = self.read_u16(&rom, pc + 1);
+                trace!("call nz, #{:04x}", val);
+                self.cycles += 12; // 24
+                pc = val;
+            },
+            0xc5 => {
+                trace!("push bc");
+                self.cycles += 12; // 24
+                pc = val;
+            },
+            0xc6 => {
+                let val = rom[pc + 1];
+                trace!("add a, #{:02x}", val);
+                self.cycles += 8;
+                pc += 2;
+            },
+            0xc7 => {
+                trace!("rst 00");
+                self.cycles += 16;
+                pc += 1;
+            },
+            0xc8 => {
+                trace!("ret z");
+                self.cycles += 8; // 20
+                pc += 1;
+            },
+            0xc9 => {
+                trace!("ret");
+                self.cycles += 16;
+                pc += 1;
+            },
+            0xca => {
+                let val = self.read_u16(&rom, pc + 1);
+                trace!("jp z, #{:04x}", val);
+                self.cycles += 12; // 16
+                pc += 3;
+            },
+            0xcb => {
+                panic!("prefix cb");
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xcc => {
+                let val = self.read_u16(&rom, pc + 1);
+                trace!("call z, #{:04x}", val);
+                self.cycles += 12; // 24
+                pc += 3;
+            },
+            0xcd => {
+                let val = self.read_u16(&rom, pc + 1);
+                trace!("call #{:04x}", val);
+                self.cycles += 24;
+                pc += 3;
+            },
+            0xce => {
+                let val = rom[pc + 1];
+                trace!("adc #{:02x}", val);
+                self.cycles += 8;
+                pc += 2;
+            },
+            0xcf => {
+                trace!("rst 08");
+                self.cycles += 16;
+                pc += 1;
+            },
+            0xd0 => {
+                trace!("ret nc");
+                self.cycles += 8; // 20
+                pc += 1;
+            },
+            0xd1 => {
+                trace!("pop de");
+                self.cycles += 12;
+                pc += 1;
+            },
+            0xd2 => {
+                let val = self.read_u16(&rom, pc + 1);
+                trace!("jp nc, #{:04x}", val);
+                self.cycles += 12; // 16
+                pc += 3;
+            },
+            0xd4 => {
+                let val = self.read_u16(&rom, pc + 1);
+                trace!("call nc, #{:04x}", val);
+                self.cycles += 12; // 24
+                pc += 3;
+            },
+            0xd5 => {
+                trace!("push de");
+                self.cycles += 16;
+                pc += 1;
+            },
+            0xd6 => {
+                let val = rom[pc + 1];
+                trace!("sub #{:02x}", val);
+                self.cycles += 8;
+                pc += 2;
+            },
+            0xd7 => {
+                trace!("rst 10");
+                self.cycles += 16;
+                pc += 1;
+            },
+            0xd8 => {
+                trace!("ret c");
+                self.cycles += 8; // 20
+                pc += 1;
+            },
+            0xd9 => {
+                trace!("reti");
+                self.cycles += 16;
+                pc += 1;
+            },
+            0xda => {
+                let val = self.read_u16(&rom, pc + 1);
+                trace!("jp c, #{:04x}", val);
+                self.cycles += 12; // 16
+                pc += 3;
+            },
+            0xdc => {
+                let val = self.read_u16(&rom, pc + 1);
+                trace!("call c, #{:04x}", val);
+                self.cycles += 12; // 24
+                pc += 3;
+            },
+            0xde => {
+                let val = rom[pc + 1];
+                trace!("sbc #{:02x}", val);
+                self.cycles += 8;
+                pc += 2;
+            },
+            0xdf => {
+                trace!("rst 18");
+                self.cycles += 16;
+                pc += 1;
+            },
+            0xe0 => {
+                let val = rom[pc + 1];
+                trace!("ld ($ff00+{:02x}), a", val);
+                self.cycles += 12;
+                pc += 2;
+            },
+            0xe1 => {
+                trace!("pop hl");
+                self.cycles += 12;
+                pc += 1;
+            },
+            0xe2 => {
+                trace!("ld ($ff00+c), a");
+                self.cycles += 8;
+                pc += 1;
+            },
+            0xe5 => {
+                trace!("push hl");
+                self.cycles += 16;
+                pc += 1;
+            },
+            0xe6 => {
+                let val = rom[pc + 1];
+                trace!("and ${:02x}", val);
+                self.cycles += 8;
+                pc += 2;
+            },
+            0xe7 => {
+                trace!("rst $20");
+                self.cycles += 16;
+                pc += 1;
+            },
+            0xe8 => {
+                let val = rom[pc + 1];
+                trace!("add sp, ${:02x}", val);
+                self.cycles += 16;
+                pc += 2;
+            },
+            0xe9 => {
+                trace!("jp (hl)");
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xea => {
+                let val = self.read_u16(&rom, pc + 1);
+                trace!("ld (${:04x}), a", val);
+                self.cycles += 16;
+                pc += 3;
+            },
+            0xee => {
+                let val = rom[pc + 1];
+                trace!("xor ${:02x}", val);
+                self.cycles += 8;
+                pc += 2;
+            },
+            0xef => {
+                trace!("rst $28");
+                self.cycles += 16;
+                pc += 1;
+            },
+            0xf0 => {
+                let val = rom[pc + 1];
+                trace!("ld a, ($ff00+{:02x})", val);
+                self.cycles += 12;
+                pc += 2;
+            },
+            0xf1 => {
+                trace!("pop af");
+                self.cycles += 12;
+                pc += 1;
+            },
+            0xf2 => {
+                trace!("ld a, ($ff00+c)");
+                self.cycles += 8;
+                pc += 1;
+            },
+            0xf3 => {
+                trace!("di");
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xf5 => {
+                trace!("push af");
+                self.cycles += 16;
+                pc += 1;
+            },
+            0xf6 => {
+                let val = rom[pc + 1];
+                trace!("or ${:02x}", val);
+                self.cycles += 8;
+                pc += 2;
+            },
+            0xf7 => {
+                trace!("rst $30");
+                self.cycles += 16;
+                pc += 1;
+            },
+            0xf8 => {
+                let val = rom[pc + 1];
+                trace!("ld hl, sp+${:02x}", val);
+                self.cycles += 12;
+                pc += 2;
+            },
+            0xf9 => {
+                trace!("ld sp, hl");
+                self.cycles += 8;
+                pc += 1;
+            },
+            0xfa => {
+                let val = self.read_u16(&rom, pc + 1);
+                trace!("ld a, (${:04x})", val);
+                self.cycles += 16;
+                pc += 3;
+            },
+            0xfb => {
+                trace!("ei");
+                self.cycles += 4;
+                pc += 1;
+            },
+            0xfe => {
+                let val = rom[pc + 1];
+                trace!("cp ${:02x}", val);
+                self.cycles += 8;
+                pc += 2;
+            },
+            0xff => {
+                trace!("rst $38");
+                self.cycles += 16;
+                pc += 1;
+            },
             _ => panic!("unknown instruction {:02x} @ pc={:04x}", rom[pc], pc),
         }
         self.pc = pc as u16
