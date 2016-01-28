@@ -156,6 +156,71 @@ impl Cpu {
         return (rom[pos + 1] as u16) << 8 | (rom[pos] as u16);
     }
 
+    fn add(&mut self, val: u8) {
+        let pa = self.a;
+        self.a += val;
+        let a = self.a;
+        self.set_zero(a == 0);
+        self.set_subtract(false);
+        self.set_half_carry(pa&0xf + val&0xf > 0xf);
+        self.set_carry(a < pa);
+    }
+
+    fn adc(&mut self, val: u8) {
+        let carry = if self.carry() { 1 } else { 0 };
+        self.add(val + carry);
+    }
+
+    fn sub(&mut self, val: u8) {
+        let pa = self.a;
+        self.a -= val;
+        let a = self.a;
+        self.set_zero(a == 0);
+        self.set_subtract(true);
+        // self.set_half_carry(pa&0xf + val&0xf > 0xf); // XXX
+        self.set_carry(a > pa);
+    }
+
+    fn sbc(&mut self, val: u8) {
+        let carry = if self.carry() { 1 } else { 0 };
+        self.sub(val + carry);
+    }
+
+    fn and(&mut self, val: u8) {
+        self.a &= val;
+        let a = self.a;
+        self.set_zero(a == 0);
+        self.set_subtract(false);
+        self.set_half_carry(true);
+        self.set_carry(false);
+    }
+
+    fn xor(&mut self, val: u8) {
+        self.a &= val;
+        let a = self.a;
+        self.set_zero(a == 0);
+        self.set_subtract(false);
+        self.set_half_carry(false);
+        self.set_carry(false);
+    }
+
+    fn or(&mut self, val: u8) {
+        self.a &= val;
+        let a = self.a;
+        self.set_zero(a == 0);
+        self.set_subtract(false);
+        self.set_half_carry(false);
+        self.set_carry(false);
+    }
+
+    fn cp(&mut self, val: u8) {
+        let a = self.a;
+        self.set_zero(a == val);
+        //self.set_subtract(false);
+        //self.set_half_carry(false);
+        //self.set_carry(false);
+    }
+
     pub fn run(&mut self, mm: &mut MemoryMap) {
         let mut pc = self.pc as usize;
         match mm.rom[pc] {
@@ -1008,385 +1073,449 @@ impl Cpu {
             },
             0x80 => {
                 trace!("add b");
-                self.a += self.b;
+                let val = self.b;
+                self.add(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x81 => {
                 trace!("add c");
-                self.a += self.c;
+                let val = self.c;
+                self.add(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x82 => {
                 trace!("add d");
-                self.a += self.d;
+                let val = self.d;
+                self.add(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x83 => {
                 trace!("add e");
-                self.a += self.e;
+                let val = self.e;
+                self.add(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x84 => {
                 trace!("add h");
-                self.a += self.h;
+                let val = self.h;
+                self.add(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x85 => {
                 trace!("add l");
-                self.a += self.l;
+                let val = self.l;
+                self.add(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x86 => {
                 trace!("add (hl)");
-                self.a += mm.read(self.hl());
+                let val = mm.read(self.hl());
+                self.add(val);
                 self.cycles += 8;
                 pc += 1;
             },
             0x87 => {
                 trace!("add a");
-                self.a += self.a;
-                self.cycles += 4;
+                let val = self.a;
+                self.add(val);
+                self.cycles += 8;
                 pc += 1;
             },
             0x88 => {
                 trace!("adc b");
-                self.a += self.b;
+                let val = self.b;
+                self.adc(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x89 => {
                 trace!("adc c");
-                self.a += self.c;
+                let val = self.c;
+                self.adc(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x8a => {
                 trace!("adc d");
-                self.a += self.d;
+                let val = self.d;
+                self.adc(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x8b => {
                 trace!("adc e");
-                self.a += self.e;
+                let val = self.e;
+                self.adc(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x8c => {
                 trace!("adc h");
-                self.a += self.h;
+                let val = self.h;
+                self.adc(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x8d => {
                 trace!("adc l");
-                self.a += self.l;
+                let val = self.l;
+                self.adc(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x8e => {
                 trace!("adc (hl)");
-                self.a += mm.read(self.hl());
+                let val = mm.read(self.hl());;
+                self.adc(val);
                 self.cycles += 8;
                 pc += 1;
             },
             0x8f => {
                 trace!("adc a");
-                self.a += self.a;
+                let val = self.a;
+                self.adc(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x90 => {
                 trace!("sub b");
-                self.a += self.b;
+                let val = self.b;
+                self.sub(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x91 => {
                 trace!("sub c");
-                self.a += self.c;
+                let val = self.c;
+                self.sub(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x92 => {
                 trace!("sub d");
-                self.a += self.d;
+                let val = self.d;
+                self.sub(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x93 => {
                 trace!("sub e");
-                self.a += self.e;
+                let val = self.e;
+                self.sub(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x94 => {
                 trace!("sub h");
-                self.a += self.h;
+                let val = self.h;
+                self.sub(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x95 => {
                 trace!("sub l");
-                self.a += self.l;
+                let val = self.l;
+                self.sub(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x96 => {
                 trace!("sub (hl)");
-                self.a += mm.read(self.hl());
+                let val = mm.read(self.hl());
+                self.sub(val);
                 self.cycles += 8;
                 pc += 1;
             },
             0x97 => {
                 trace!("sub a");
-                self.a += self.a;
+                let val = self.a;
+                self.sub(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x98 => {
                 trace!("sbc b");
-                self.a += self.b;
+                let val = self.b;
+                self.sbc(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x99 => {
                 trace!("sbc c");
-                self.a += self.c;
+                let val = self.c;
+                self.sbc(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x9a => {
                 trace!("sbc d");
-                self.a += self.d;
+                let val = self.d;
+                self.sbc(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x9b => {
                 trace!("sbc e");
-                self.a += self.e;
+                let val = self.e;
+                self.sbc(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x9c => {
                 trace!("sbc h");
-                self.a += self.h;
+                let val = self.h;
+                self.sbc(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x9d => {
                 trace!("sbc l");
-                self.a += self.l;
+                let val = self.l;
+                self.sbc(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0x9e => {
                 trace!("sbc (hl)");
-                self.a += mm.read(self.hl());
+                let val = mm.read(self.hl());
+                self.sbc(val);
                 self.cycles += 8;
                 pc += 1;
             },
             0x9f => {
                 trace!("sbc a");
-                self.a += self.a;
+                let val = self.a;
+                self.sbc(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xa0 => {
                 trace!("and b");
-                self.a += self.b;
+                let val = self.a;
+                self.and(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xa1 => {
                 trace!("and c");
-                self.a += self.c;
+                let val = self.c;
+                self.and(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xa2 => {
                 trace!("and d");
-                self.a += self.d;
+                let val = self.d;
+                self.and(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xa3 => {
                 trace!("and e");
-                self.a += self.e;
+                let val = self.e;
+                self.and(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xa4 => {
                 trace!("and h");
-                self.a += self.h;
+                let val = self.h;
+                self.and(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xa5 => {
                 trace!("and l");
-                self.a += self.l;
+                let val = self.l;
+                self.and(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xa6 => {
                 trace!("and (hl)");
-                self.a += mm.read(self.hl());
+                let val = mm.read(self.hl());
+                self.and(val);
                 self.cycles += 8;
                 pc += 1;
             },
             0xa7 => {
                 trace!("and a");
-                self.a += self.a;
+                let val = self.a;
+                self.and(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xa8 => {
                 trace!("xor b");
-                self.a += self.b;
+                let val = self.b;
+                self.xor(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xa9 => {
                 trace!("xor c");
-                self.a += self.c;
+                let val = self.c;
+                self.xor(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xaa => {
                 trace!("xor d");
-                self.a += self.d;
+                let val = self.d;
+                self.xor(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xab => {
                 trace!("xor e");
-                self.a += self.e;
+                let val = self.e;
+                self.xor(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xac => {
                 trace!("xor h");
-                self.a += self.h;
+                let val = self.h;
+                self.xor(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xad => {
                 trace!("xor l");
-                self.a += self.l;
+                let val = self.l;
+                self.xor(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xae => {
                 trace!("xor (hl)");
-                self.a += mm.read(self.hl());
+                let val = mm.read(self.hl());
+                self.xor(val);
                 self.cycles += 8;
                 pc += 1;
             },
             0xaf => {
                 trace!("xor a");
-                self.a += self.a;
+                let val = self.a;
+                self.xor(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xb0 => {
                 trace!("or b");
-                self.a += self.b;
+                let val = self.b;
+                self.or(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xb1 => {
                 trace!("or c");
-                self.a += self.c;
+                let val = self.c;
+                self.or(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xb2 => {
                 trace!("or d");
-                self.a += self.d;
+                let val = self.d;
+                self.or(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xb3 => {
                 trace!("or e");
-                self.a += self.e;
+                let val = self.e;
+                self.or(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xb4 => {
                 trace!("or h");
-                self.a += self.h;
+                let val = self.h;
+                self.or(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xb5 => {
                 trace!("or l");
-                self.a += self.l;
+                let val = self.l;
+                self.or(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xb6 => {
                 trace!("or (hl)");
-                self.a += mm.read(self.hl());
+                let val = mm.read(self.hl());
+                self.or(val);
                 self.cycles += 8;
                 pc += 1;
             },
             0xb7 => {
                 trace!("or a");
-                self.a += self.a;
+                let val = self.a;
+                self.or(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xb8 => {
                 trace!("cp b");
-                self.a += self.b;
+                let val = self.b;
+                self.cp(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xb9 => {
                 trace!("cp c");
-                self.a += self.c;
+                let val = self.c;
+                self.cp(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xba => {
                 trace!("cp d");
-                self.a += self.d;
+                let val = self.d;
+                self.cp(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xbb => {
                 trace!("cp e");
-                self.a += self.e;
+                let val = self.e;
+                self.cp(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xbc => {
                 trace!("cp h");
-                self.a += self.h;
+                let val = self.h;
+                self.cp(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xbd => {
                 trace!("cp l");
-                self.a += self.l;
+                let val = self.l;
+                self.cp(val);
                 self.cycles += 4;
                 pc += 1;
             },
             0xbe => {
                 trace!("cp (hl)");
-                self.a += mm.read(self.hl());
+                let val = mm.read(self.hl());
+                self.cp(val);
                 self.cycles += 8;
                 pc += 1;
             },
             0xbf => {
                 trace!("cp a");
-                self.a += self.a;
+                let val = self.a;
+                self.cp(val);
                 self.cycles += 4;
                 pc += 1;
             },
@@ -1426,6 +1555,7 @@ impl Cpu {
             0xc6 => {
                 let val = mm.rom[pc + 1];
                 trace!("add a, #{:02x}", val);
+                self.add(val);
                 self.cycles += 8;
                 pc += 2;
             },
@@ -1470,6 +1600,7 @@ impl Cpu {
             0xce => {
                 let val = mm.rom[pc + 1];
                 trace!("adc #{:02x}", val);
+                self.adc(val);
                 self.cycles += 8;
                 pc += 2;
             },
@@ -1508,6 +1639,7 @@ impl Cpu {
             0xd6 => {
                 let val = mm.rom[pc + 1];
                 trace!("sub #{:02x}", val);
+                self.sub(val);
                 self.cycles += 8;
                 pc += 2;
             },
@@ -1541,6 +1673,7 @@ impl Cpu {
             0xde => {
                 let val = mm.rom[pc + 1];
                 trace!("sbc #{:02x}", val);
+                self.sbc(val);
                 self.cycles += 8;
                 pc += 2;
             },
@@ -1573,6 +1706,7 @@ impl Cpu {
             0xe6 => {
                 let val = mm.rom[pc + 1];
                 trace!("and ${:02x}", val);
+                self.and(val);
                 self.cycles += 8;
                 pc += 2;
             },
@@ -1601,6 +1735,7 @@ impl Cpu {
             0xee => {
                 let val = mm.rom[pc + 1];
                 trace!("xor ${:02x}", val);
+                self.xor(val);
                 self.cycles += 8;
                 pc += 2;
             },
@@ -1638,6 +1773,7 @@ impl Cpu {
             0xf6 => {
                 let val = mm.rom[pc + 1];
                 trace!("or ${:02x}", val);
+                self.or(val);
                 self.cycles += 8;
                 pc += 2;
             },
@@ -1671,6 +1807,7 @@ impl Cpu {
             0xfe => {
                 let val = mm.rom[pc + 1];
                 trace!("cp ${:02x}", val);
+                self.cp(val);
                 self.cycles += 8;
                 pc += 2;
             },
