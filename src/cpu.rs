@@ -1,8 +1,10 @@
 use std::fmt;
+use std::num;
 
 pub struct MemoryMap {
     pub rom: Vec<u8>,
     pub vram: [u8; 0x2000],
+    pub wram: [u8; 0x2000],
     pub hram: [u8; 0x80],
 }
 
@@ -40,6 +42,10 @@ impl MemoryMap {
     fn write(&mut self, addr: u16, val: u8) {
         // TODO
         match addr {
+            // wram
+            0xc000 ... 0xe000 => {
+                self.wram[addr as usize - 0xc000] = val;
+            },
             // hram
             0xff80 ... 0xfffe => {
                 self.hram[addr as usize - 0xff80] = val;
@@ -64,6 +70,10 @@ impl MemoryMap {
             // vram
             0x8000 ... 0x9fff => {
                 return self.vram[addr as usize - 0x8000];
+            },
+            // wram
+            0xc000 ... 0xe000 => {
+                return self.wram[addr as usize - 0xc000];
             },
             // hram
             0xff80 ... 0xfffe => {
@@ -175,7 +185,7 @@ impl Cpu {
 
     fn add(&mut self, val: u8) {
         let pa = self.a;
-        self.a += val;
+        self.a.wrapping_add(val);
         let a = self.a;
         self.set_zero(a == 0);
         self.set_subtract(false);
@@ -190,7 +200,7 @@ impl Cpu {
 
     fn sub(&mut self, val: u8) {
         let pa = self.a;
-        self.a -= val;
+        self.a.wrapping_sub(val);
         let a = self.a;
         self.set_zero(a == 0);
         self.set_subtract(true);
@@ -276,14 +286,14 @@ impl Cpu {
                 },
                 0x03 => {
                     trace!("inc bc");
-                    let bc = self.bc();
-                    self.set_bc(bc + 1);
+                    let bc = self.bc().wrapping_add(1);
+                    self.set_bc(bc);
                     self.cycles += 8;
                     pc += 1;
                 },
                 0x04 => {
                     trace!("inc b");
-                    self.b += 1;
+                    self.b = self.b.wrapping_add(1);
                     let b = self.b;
                     self.set_zero(b == 0);
                     self.set_subtract(false);
@@ -293,7 +303,7 @@ impl Cpu {
                 },
                 0x05 => {
                     trace!("dec b");
-                    self.b -= 1;
+                    self.b = self.b.wrapping_sub(1);
                     let b = self.b;
                     self.set_zero(b == 0);
                     self.set_subtract(true);
@@ -1939,8 +1949,9 @@ fn test_cpu() {
 
     let rom = vec![0x00, 0x01, 0x23, 0x45];
     let vram : [u8; 0x2000] = [0; 0x2000];
+    let wram : [u8; 0x2000] = [0; 0x2000];
     let hram : [u8; 0x80] = [0; 0x80];
-    let mut mm = MemoryMap { rom: rom, vram: vram, hram: hram };
+    let mut mm = MemoryMap { rom: rom, vram: vram, wram: wram, hram: hram };
     assert_eq!(cpu.read_u16(&mm, 0), 0x0100);
     assert_eq!(cpu.read_u16(&mm, 2), 0x4523);
 
@@ -1949,4 +1960,21 @@ fn test_cpu() {
     assert_eq!(mm.read(cpu.sp), 0x34);
     assert_eq!(mm.read(cpu.sp + 1), 0x12);
     assert_eq!(cpu.read_return_addr(&mm), 0x1234);
+
+    {
+        let mut a : num::Wrapping<u8>;
+        let mut b : num::Wrapping<u8>;
+
+        a = num::Wrapping(23);
+        b = num::Wrapping(42);
+
+        a += num::Wrapping(4);
+
+        let c = a + b;
+        println!("a = {}", a.0);
+        println!("b = {}", b.0);
+        println!("c = {}", c.0);
+    }
+
+    //panic!("asdf");
 }
