@@ -50,7 +50,9 @@ fn main() {
     let pitch = 160;
 
     let cpu = cpu::Cpu::new();
-    let mm = cpu::MemoryMap { rom: rom };
+    let vram : [u8; 0x2000] = [0; 0x2000];
+    let hram : [u8; 0x80] = [0; 0x80];
+    let mm = cpu::MemoryMap { rom: rom, vram: vram, hram: hram };
     let mut gb = cpu::Gameboy { cpu: cpu, mm: mm };
 
     println!("cpu = {:?}", gb.cpu);
