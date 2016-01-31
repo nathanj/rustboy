@@ -248,6 +248,80 @@ impl Cpu {
         //self.set_carry(false);
     }
 
+    fn rlc(&mut self, val: u8) -> u8 {
+        let carry = val & 0x80;
+        let mut newval = val << 1;
+
+        if carry == 0 {
+            self.set_carry(false);
+        } else {
+            newval |= 0x1;
+            self.set_carry(true);
+        }
+        self.set_zero(newval == 0);
+
+        return newval;
+    }
+
+    fn rl(&mut self, val: u8) -> u8 {
+        let carry = val & 0x80;
+        let mut newval = val << 1;
+
+        if self.carry() {
+            newval |= 0x1;
+        }
+        self.set_carry(carry != 0);
+        self.set_zero(newval == 0);
+        return newval;
+    }
+
+    fn sla(&mut self, val: u8) -> u8 {
+        let carry = val & 0x80;
+        let mut newval = val << 1;
+
+        self.set_carry(carry != 0);
+        self.set_zero(newval == 0);
+
+        return newval;
+    }
+
+    fn sra(&mut self, val: u8) -> u8 {
+        let carry = val & 0x1;
+        let mut newval = val >> 1;
+
+        self.set_carry(carry != 0);
+        self.set_zero(newval == 0);
+
+        return newval;
+    }
+
+    fn rrc(&mut self, val: u8) -> u8 {
+        let carry = val & 0x1;
+        let mut newval = val >> 1;
+
+        if carry == 1 {
+            newval |= 0x80;
+            self.set_carry(true);
+        } else {
+            self.set_carry(false);
+        }
+        self.set_zero(newval == 0);
+
+        return newval;
+    }
+
+    fn rr(&mut self, val: u8) -> u8 {
+        let carry = val & 0x1;
+        let mut newval = val >> 1;
+
+        if self.carry() {
+            newval |= 0x80;
+        }
+        self.set_carry(carry == 1);
+        self.set_zero(newval == 0);
+        return newval;
+    }
+
     fn write_return_addr(&mut self, mm: &mut MemoryMap, addr: u16) {
         mm.write(self.sp - 1, (addr >> 8) as u8);
         mm.write(self.sp - 2, (addr & 0xff) as u8);
@@ -320,13 +394,9 @@ impl Cpu {
                 },
                 0x07 => {
                     trace!("rlca");
-                    // TODO
+                    self.a = self.rlc(self.a);
                     self.cycles += 4;
                     pc += 1;
-                    self.set_zero(false);
-                    self.set_subtract(false);
-                    self.set_half_carry(false);
-                    self.set_carry(true /* TODO */);
                 },
                 0x08 => {
                     let val = self.read_u16(&mm, pc + 1);
