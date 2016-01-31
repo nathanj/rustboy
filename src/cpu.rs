@@ -252,6 +252,8 @@ impl Cpu {
         let carry = val & 0x80;
         let mut newval = val << 1;
 
+        println!("newval = {}", newval);
+
         if carry == 0 {
             self.set_carry(false);
         } else {
@@ -277,7 +279,7 @@ impl Cpu {
 
     fn sla(&mut self, val: u8) -> u8 {
         let carry = val & 0x80;
-        let mut newval = val << 1;
+        let newval = val << 1;
 
         self.set_carry(carry != 0);
         self.set_zero(newval == 0);
@@ -287,7 +289,7 @@ impl Cpu {
 
     fn sra(&mut self, val: u8) -> u8 {
         let carry = val & 0x1;
-        let mut newval = val >> 1;
+        let newval = val >> 1;
 
         self.set_carry(carry != 0);
         self.set_zero(newval == 0);
@@ -322,6 +324,36 @@ impl Cpu {
         return newval;
     }
 
+    fn inc(&mut self, val: u8) -> u8 {
+        let newval = val.wrapping_add(1);
+        self.set_zero(newval == 0);
+        self.set_subtract(false);
+        self.set_half_carry(newval & 0xf == 0);
+        return newval;
+    }
+
+    fn inc16(&mut self, val: u16) -> u16 {
+        let newval = val.wrapping_add(1);
+        self.set_zero(newval == 0);
+        self.set_subtract(false);
+        return newval;
+    }
+
+    fn dec(&mut self, val: u8) -> u8 {
+        let newval = val.wrapping_sub(1);
+        self.set_zero(newval == 0);
+        self.set_subtract(true);
+        self.set_half_carry(newval & 0xf == 0xf);
+        return newval;
+    }
+
+    fn dec16(&mut self, val: u16) -> u16 {
+        let newval = val.wrapping_sub(1);
+        self.set_zero(newval == 0);
+        self.set_subtract(true);
+        return newval;
+    }
+
     fn write_return_addr(&mut self, mm: &mut MemoryMap, addr: u16) {
         mm.write(self.sp - 1, (addr >> 8) as u8);
         mm.write(self.sp - 2, (addr & 0xff) as u8);
@@ -339,6 +371,9 @@ impl Cpu {
         let mut pc = self.pc as usize;
         loop {
             trace!("{:?}", self);
+            if self.cycles > 200000 {
+                return;
+            }
             match mm.rom[pc] {
                 0x00 => {
                     trace!("nop");
@@ -360,28 +395,23 @@ impl Cpu {
                 },
                 0x03 => {
                     trace!("inc bc");
-                    let bc = self.bc().wrapping_add(1);
-                    self.set_bc(bc);
+                    let bc = self.bc();
+                    let inc = self.inc16(bc);
+                    self.set_bc(inc);
                     self.cycles += 8;
                     pc += 1;
                 },
                 0x04 => {
                     trace!("inc b");
-                    self.b = self.b.wrapping_add(1);
                     let b = self.b;
-                    self.set_zero(b == 0);
-                    self.set_subtract(false);
-                    self.set_half_carry(b & 0xf == 0);
+                    self.b = self.inc(b);
                     self.cycles += 4;
                     pc += 1;
                 },
                 0x05 => {
                     trace!("dec b");
-                    self.b = self.b.wrapping_sub(1);
                     let b = self.b;
-                    self.set_zero(b == 0);
-                    self.set_subtract(true);
-                    self.set_half_carry(b & 0xf == 0xf);
+                    self.b = self.dec(b);
                     self.cycles += 4;
                     pc += 1;
                 },
@@ -394,7 +424,8 @@ impl Cpu {
                 },
                 0x07 => {
                     trace!("rlca");
-                    self.a = self.rlc(self.a);
+                    let val = self.a;
+                    self.a = self.rlc(val);
                     self.cycles += 4;
                     pc += 1;
                 },
@@ -425,19 +456,22 @@ impl Cpu {
                 0x0b => {
                     trace!("dec bc");
                     let bc = self.bc();
-                    self.set_bc(bc.wrapping_sub(1));
+                    let dec = self.dec16(bc);
+                    self.set_bc(dec);
                     self.cycles += 8;
                     pc += 1;
                 },
                 0x0c => {
                     trace!("inc c");
-                    self.c.wrapping_add(1);
+                    let c = self.c;
+                    self.c = self.inc(c);
                     self.cycles += 4;
                     pc += 1;
                 },
                 0x0d => {
                     trace!("dec c");
-                    self.c.wrapping_sub(1);
+                    let c = self.c;
+                    self.c = self.dec(c);
                     self.cycles += 4;
                     pc += 1;
                 },
@@ -445,12 +479,15 @@ impl Cpu {
                     let val = mm.rom[pc + 1];
                     trace!("ld c, ${:02x}", val);
                     self.c = val;
+                    let c = self.c;
+                    self.set_zero(c == 0);
                     self.cycles += 8;
                     pc += 2;
                 },
                 0x0f => {
                     trace!("rrca");
-                    // TODO
+                    let a = self.a;
+                    self.a = self.rrc(a);
                     self.cycles += 4;
                     pc += 1;
                 },
@@ -476,27 +513,22 @@ impl Cpu {
                 0x13 => {
                     trace!("inc de");
                     let de = self.de();
-                    self.set_de(de.wrapping_add(1));
+                    let inc = self.inc16(de);
+                    self.set_de(inc);
                     self.cycles += 8;
                     pc += 1;
                 },
                 0x14 => {
                     trace!("inc d");
-                    self.d = self.d.wrapping_add(1);
                     let d = self.d;
-                    self.set_zero(d == 0);
-                    self.set_subtract(false);
-                    self.set_half_carry(d & 0xf == 0);
+                    self.d = self.inc(d);
                     self.cycles += 4;
                     pc += 1;
                 },
                 0x15 => {
                     trace!("dec d");
-                    self.d.wrapping_sub(1);
                     let d = self.d;
-                    self.set_zero(d == 0);
-                    self.set_subtract(true);
-                    self.set_half_carry(d & 0xf == 0xf);
+                    self.d = self.dec(d);
                     self.cycles += 4;
                     pc += 1;
                 },
@@ -509,14 +541,15 @@ impl Cpu {
                 },
                 0x17 => {
                     trace!("rla");
-                    // TODO
+                    let a = self.a;
+                    self.a = self.rl(a);
                     self.cycles += 4;
                     pc += 1;
                 },
                 0x18 => {
-                    let val = mm.rom[pc + 1];
+                    let val = mm.rom[pc + 1] as i8;
                     trace!("jr ${:02x}", val);
-                    pc += val as usize;
+                    pc = ((pc as isize) + (val as isize)) as usize;
                     self.cycles += 12;
                     pc += 2;
                 },
@@ -540,19 +573,22 @@ impl Cpu {
                 0x1b => {
                     trace!("dec de");
                     let de = self.de();
-                    self.set_de(de.wrapping_sub(1));
+                    let dec = self.dec16(de);
+                    self.set_de(dec);
                     self.cycles += 8;
                     pc += 1;
                 },
                 0x1c => {
                     trace!("inc e");
-                    self.e = self.e.wrapping_add(1);
+                    let e = self.e;
+                    self.e = self.inc(e);
                     self.cycles += 4;
                     pc += 1;
                 },
                 0x1d => {
                     trace!("dec e");
-                    self.e = self.e.wrapping_sub(1);
+                    let e = self.e;
+                    self.e = self.dec(e);
                     self.cycles += 4;
                     pc += 1;
                 },
@@ -565,15 +601,16 @@ impl Cpu {
                 },
                 0x1f => {
                     trace!("rra");
-                    // TODO
+                    let a = self.a;
+                    self.a = self.rr(a);
                     self.cycles += 4;
                     pc += 1;
                 },
                 0x20 => {
-                    let val = mm.rom[pc + 1];
-                    trace!("jr nz, ${:02x}", val);
+                    let val = mm.rom[pc + 1] as i8;
+                    trace!("jr nz, #{}", val);
                     if !self.zero() {
-                        pc += val as usize;
+                        pc = ((pc as isize) + (val as isize)) as usize;
                         self.cycles += 12;
                     } else {
                         self.cycles += 8;
@@ -598,19 +635,22 @@ impl Cpu {
                 0x23 => {
                     trace!("inc hl");
                     let hl = self.hl();
-                    self.set_hl(hl.wrapping_add(1));
+                    let inc = self.inc16(hl);
+                    self.set_hl(inc);
                     self.cycles += 8;
                     pc += 1;
                 },
                 0x24 => {
                     trace!("inc h");
-                    self.h = self.h.wrapping_add(1);
+                    let h = self.h;
+                    self.h = self.inc(h);
                     self.cycles += 4;
                     pc += 1;
                 },
                 0x25 => {
                     trace!("dec h");
-                    self.h = self.h.wrapping_sub(1);
+                    let h = self.h;
+                    self.h = self.dec(h);
                     self.cycles += 4;
                     pc += 1;
                 },
@@ -628,10 +668,10 @@ impl Cpu {
                     pc += 1;
                 },
                 0x28 => {
-                    let val = mm.rom[pc + 1];
-                    trace!("jr z, ${:02x}", val);
+                    let val = mm.rom[pc + 1] as i8;
+                    trace!("jr z, #{}", val);
                     if self.zero() {
-                        pc += val as usize;
+                        pc = ((pc as isize) + (val as isize)) as usize;
                         self.cycles += 12;
                     } else {
                         self.cycles += 8;
@@ -649,26 +689,30 @@ impl Cpu {
                     trace!("ld a, (hl+)");
                     let hl = self.hl();
                     self.a = mm.read(hl);
-                    self.set_hl(hl.wrapping_add(1));
+                    let inc = self.inc16(hl);
+                    self.set_hl(inc);
                     self.cycles += 8;
                     pc += 1;
                 },
                 0x2b => {
                     trace!("dec hl");
                     let hl = self.hl();
-                    self.set_hl(hl.wrapping_sub(1));
+                    let dec = self.dec16(hl);
+                    self.set_hl(dec);
                     self.cycles += 8;
                     pc += 1;
                 },
                 0x2c => {
                     trace!("inc l");
-                    self.l = self.l.wrapping_add(1);
+                    let l = self.l;
+                    self.l = self.inc(l);
                     self.cycles += 4;
                     pc += 1;
                 },
                 0x2d => {
                     trace!("dec l");
-                    self.l = self.l.wrapping_sub(1);
+                    let l = self.l;
+                    self.l = self.dec(l);
                     self.cycles += 4;
                     pc += 1;
                 },
@@ -682,14 +726,16 @@ impl Cpu {
                 0x2f => {
                     trace!("cpl");
                     self.a = !self.a;
+                    let a = self.a;
+                    self.set_zero(a == 0);
                     self.cycles += 4;
                     pc += 1;
                 },
                 0x30 => {
-                    let val = mm.rom[pc + 1];
-                    trace!("jr nc, ${:02x}", val);
+                    let val = mm.rom[pc + 1] as i8;
+                    trace!("jr nc, #{}", val);
                     if !self.carry() {
-                        pc += val as usize;
+                        pc = ((pc as isize) + (val as isize)) as usize;
                         self.cycles += 12;
                     } else {
                         self.cycles += 8;
@@ -707,13 +753,15 @@ impl Cpu {
                     trace!("ld (hl-), a");
                     let hl = self.hl();
                     mm.write(hl, self.a);
-                    self.set_hl(hl.wrapping_sub(1));
+                    let dec = self.dec16(hl);
+                    self.set_hl(dec);
                     self.cycles += 8;
                     pc += 1;
                 },
                 0x33 => {
                     trace!("inc sp");
-                    self.sp = self.sp.wrapping_add(1);
+                    let sp = self.sp;
+                    self.sp = self.inc16(sp);
                     self.cycles += 8;
                     pc += 1;
                 },
@@ -741,15 +789,15 @@ impl Cpu {
                     pc += 1;
                 },
                 0x37 => {
-                    trace!("scf");
+                    panic!("scf");
                     self.cycles += 4;
                     pc += 1;
                 },
                 0x38 => {
-                    let val = mm.rom[pc + 1];
-                    trace!("jr c, ${:02x}", val);
+                    let val = mm.rom[pc + 1] as i8;
+                    trace!("jr c, #{}", val);
                     if self.carry() {
-                        pc += val as usize;
+                        pc = ((pc as isize) + (val as isize)) as usize;
                         self.cycles += 12;
                     } else {
                         self.cycles += 8;
@@ -774,19 +822,22 @@ impl Cpu {
                 },
                 0x3b => {
                     trace!("dec sp");
-                    self.sp = self.sp.wrapping_sub(1);
+                    let sp = self.sp;
+                    self.sp = self.dec16(sp);
                     self.cycles += 8;
                     pc += 2;
                 },
                 0x3c => {
                     trace!("inc a");
-                    self.a = self.a.wrapping_add(1);
+                    let a = self.a;
+                    self.a = self.inc(a);
                     self.cycles += 4;
                     pc += 1;
                 },
                 0x3d => {
                     trace!("dec a");
-                    self.a = self.a.wrapping_sub(1);
+                    let a = self.a;
+                    self.a = self.dec(a);
                     self.cycles += 4;
                     pc += 1;
                 },
@@ -798,7 +849,7 @@ impl Cpu {
                     pc += 2;
                 },
                 0x3f => {
-                    trace!("ccf");
+                    panic!("ccf");
                     self.cycles += 4;
                     pc += 1;
                 },
@@ -2031,9 +2082,17 @@ fn test_cpu() {
     assert_eq!(mm.read(cpu.sp + 1), 0x12);
     assert_eq!(cpu.read_return_addr(&mm), 0x1234);
 
+    assert_eq!(cpu.rlc(23), 2*23);
+    assert_eq!(cpu.rlc(46), 2*46);
+    assert_eq!(cpu.rlc(92), 2*92);
+    assert_eq!(cpu.rlc(150), 45);
+
+    assert_eq!(cpu.rrc(150), 75);
+    assert_eq!(cpu.rrc(75), 165);
+
     {
-        let mut a : num::Wrapping<u8>;
-        let mut b : num::Wrapping<u8>;
+        let a : num::Wrapping<u8>;
+        let b : num::Wrapping<u8>;
 
         a = num::Wrapping(23);
         b = num::Wrapping(42);
