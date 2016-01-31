@@ -339,7 +339,7 @@ impl Cpu {
                     trace!("add hl, bc");
                     let bc = self.bc();
                     let hl = self.hl();
-                    self.set_hl(hl + bc);
+                    self.set_hl(hl.wrapping_add(bc));
                     self.set_subtract(false);
                     self.set_half_carry(false);
                     self.set_carry(false /* TODO */);
@@ -355,19 +355,19 @@ impl Cpu {
                 0x0b => {
                     trace!("dec bc");
                     let bc = self.bc();
-                    self.set_bc(bc - 1);
+                    self.set_bc(bc.wrapping_sub(1));
                     self.cycles += 8;
                     pc += 1;
                 },
                 0x0c => {
                     trace!("inc c");
-                    self.c += 1;
+                    self.c.wrapping_add(1);
                     self.cycles += 4;
                     pc += 1;
                 },
                 0x0d => {
                     trace!("dec c");
-                    self.c -= 1;
+                    self.c.wrapping_sub(1);
                     self.cycles += 4;
                     pc += 1;
                 },
@@ -406,13 +406,13 @@ impl Cpu {
                 0x13 => {
                     trace!("inc de");
                     let de = self.de();
-                    self.set_de(de + 1);
+                    self.set_de(de.wrapping_add(1));
                     self.cycles += 8;
                     pc += 1;
                 },
                 0x14 => {
                     trace!("inc d");
-                    self.d += 1;
+                    self.d = self.d.wrapping_add(1);
                     let d = self.d;
                     self.set_zero(d == 0);
                     self.set_subtract(false);
@@ -422,7 +422,7 @@ impl Cpu {
                 },
                 0x15 => {
                     trace!("dec d");
-                    self.d -= 1;
+                    self.d.wrapping_sub(1);
                     let d = self.d;
                     self.set_zero(d == 0);
                     self.set_subtract(true);
@@ -454,7 +454,7 @@ impl Cpu {
                     trace!("add hl, de");
                     let de = self.de();
                     let hl = self.hl();
-                    self.set_hl(hl + de);
+                    self.set_hl(hl.wrapping_add(de));
                     self.set_subtract(false);
                     self.set_half_carry(false);
                     self.set_carry(false /* TODO */);
@@ -470,19 +470,19 @@ impl Cpu {
                 0x1b => {
                     trace!("dec de");
                     let de = self.de();
-                    self.set_de(de - 1);
+                    self.set_de(de.wrapping_sub(1));
                     self.cycles += 8;
                     pc += 1;
                 },
                 0x1c => {
                     trace!("inc e");
-                    self.e += 1;
+                    self.e = self.e.wrapping_add(1);
                     self.cycles += 4;
                     pc += 1;
                 },
                 0x1d => {
                     trace!("dec e");
-                    self.e -= 1;
+                    self.e = self.e.wrapping_sub(1);
                     self.cycles += 4;
                     pc += 1;
                 },
@@ -521,26 +521,26 @@ impl Cpu {
                     trace!("ld (hl+), a");
                     let hl = self.hl();
                     mm.write(hl, self.a);
-                    self.set_hl(hl + 1);
+                    self.set_hl(hl.wrapping_add(1));
                     self.cycles += 8;
                     pc += 1;
                 },
                 0x23 => {
                     trace!("inc hl");
                     let hl = self.hl();
-                    self.set_hl(hl + 1);
+                    self.set_hl(hl.wrapping_add(1));
                     self.cycles += 8;
                     pc += 1;
                 },
                 0x24 => {
                     trace!("inc h");
-                    self.h += 1;
+                    self.h = self.h.wrapping_add(1);
                     self.cycles += 4;
                     pc += 1;
                 },
                 0x25 => {
                     trace!("dec h");
-                    self.h -= 1;
+                    self.h = self.h.wrapping_sub(1);
                     self.cycles += 4;
                     pc += 1;
                 },
@@ -571,7 +571,7 @@ impl Cpu {
                 0x29 => {
                     trace!("add hl, hl");
                     let hl = self.hl();
-                    self.set_hl(hl + hl);
+                    self.set_hl(hl.wrapping_add(hl));
                     self.cycles += 8;
                     pc += 1;
                 },
@@ -579,26 +579,26 @@ impl Cpu {
                     trace!("ld a, (hl+)");
                     let hl = self.hl();
                     self.a = mm.read(hl);
-                    self.set_hl(hl + 1);
+                    self.set_hl(hl.wrapping_add(1));
                     self.cycles += 8;
                     pc += 1;
                 },
                 0x2b => {
                     trace!("dec hl");
                     let hl = self.hl();
-                    self.set_hl(hl - 1);
+                    self.set_hl(hl.wrapping_sub(1));
                     self.cycles += 8;
                     pc += 1;
                 },
                 0x2c => {
                     trace!("inc l");
-                    self.l += 1;
+                    self.l = self.l.wrapping_add(1);
                     self.cycles += 4;
                     pc += 1;
                 },
                 0x2d => {
                     trace!("dec l");
-                    self.l -= 1;
+                    self.l = self.l.wrapping_sub(1);
                     self.cycles += 4;
                     pc += 1;
                 },
@@ -637,13 +637,13 @@ impl Cpu {
                     trace!("ld (hl-), a");
                     let hl = self.hl();
                     mm.write(hl, self.a);
-                    self.set_hl(hl - 1);
+                    self.set_hl(hl.wrapping_sub(1));
                     self.cycles += 8;
                     pc += 1;
                 },
                 0x33 => {
                     trace!("inc sp");
-                    self.sp += 1;
+                    self.sp = self.sp.wrapping_add(1);
                     self.cycles += 8;
                     pc += 1;
                 },
@@ -651,7 +651,7 @@ impl Cpu {
                     trace!("inc (hl)");
                     let hl = self.hl();
                     let val = mm.read(hl);
-                    mm.write(hl, val + 1);
+                    mm.write(hl, val.wrapping_add(1));
                     self.cycles += 12;
                     pc += 1;
                 },
@@ -659,7 +659,7 @@ impl Cpu {
                     trace!("dec (hl)");
                     let hl = self.hl();
                     let val = mm.read(hl);
-                    mm.write(hl, val - 1);
+                    mm.write(hl, val.wrapping_sub(1));
                     self.cycles += 12;
                     pc += 1;
                 },
@@ -690,7 +690,7 @@ impl Cpu {
                     trace!("add hl, sp");
                     let hl = self.hl();
                     let sp = self.sp;
-                    self.set_hl(hl + sp);
+                    self.set_hl(hl.wrapping_add(sp));
                     self.cycles += 8;
                     pc += 2;
                 },
@@ -698,25 +698,25 @@ impl Cpu {
                     trace!("ld a, (hl-)");
                     self.a = mm.read(self.hl());
                     let hl = self.hl();
-                    self.set_hl(hl - 1);
+                    self.set_hl(hl.wrapping_sub(1));
                     self.cycles += 8;
                     pc += 2;
                 },
                 0x3b => {
                     trace!("dec sp");
-                    self.sp -= 1;
+                    self.sp = self.sp.wrapping_sub(1);
                     self.cycles += 8;
                     pc += 2;
                 },
                 0x3c => {
                     trace!("inc a");
-                    self.a += 1;
+                    self.a = self.a.wrapping_add(1);
                     self.cycles += 4;
                     pc += 1;
                 },
                 0x3d => {
                     trace!("dec a");
-                    self.a -= 1;
+                    self.a = self.a.wrapping_sub(1);
                     self.cycles += 4;
                     pc += 1;
                 },
@@ -1968,7 +1968,7 @@ fn test_cpu() {
         a = num::Wrapping(23);
         b = num::Wrapping(42);
 
-        a += num::Wrapping(4);
+        //a += num::Wrapping(4);
 
         let c = a + b;
         println!("a = {}", a.0);
