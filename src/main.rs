@@ -18,6 +18,15 @@ use sdl2::keyboard::Keycode;
 use sdl2::render::Texture;
 
 mod cpu;
+mod lcd;
+
+pub struct Gameboy {
+    pub cpu: cpu::Cpu,
+    pub mm: cpu::MemoryMap,
+    pub lcd: lcd::Lcd,
+    //vram: [u8; 0x2000],
+    //eram: [u8; 0x2000],
+}
 
 fn main() {
     env_logger::init().unwrap();
@@ -53,12 +62,20 @@ fn main() {
     let vram : [u8; 0x2000] = [0; 0x2000];
     let wram : [u8; 0x2000] = [0; 0x2000];
     let hram : [u8; 0x80] = [0; 0x80];
-    let mm = cpu::MemoryMap { rom: rom, vram: vram, wram: wram, hram: hram };
-    let mut gb = cpu::Gameboy { cpu: cpu, mm: mm };
+    let mm = cpu::MemoryMap { rom: rom, vram: vram, wram: wram, hram: hram, interrupt_enable: false, interrupt_master_enable: false, interrupt_flag: 0 };
+    let lcd = lcd::Lcd::new();
+    let mut gb = Gameboy { cpu: cpu, mm: mm, lcd: lcd };
 
     println!("cpu = {:?}", gb.cpu);
-    gb.cpu.run(&mut gb.mm);
-    println!("cpu = {:?}", gb.cpu);
+    let mut prevcycles = 0u32;
+    loop {
+        let cycles = gb.cpu.run(&mut gb.mm);
+        gb.lcd.run(&mut gb.mm, cycles - prevcycles);
+        prevcycles = cycles;
+        if cycles > 500 {
+            break;
+        }
+    }
 
     pixels[10100] = 10;
     pixels[10101] = 20;
@@ -89,6 +106,7 @@ fn main() {
                 _ => {}
             }
         }
+        break 'running
         // The rest of the game loop goes here...
     }
 }
