@@ -19,6 +19,7 @@ use sdl2::render::Texture;
 
 mod cpu;
 mod lcd;
+mod timer;
 
 pub struct Gameboy {
     pub cpu: cpu::Cpu,
