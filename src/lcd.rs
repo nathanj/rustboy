@@ -1,5 +1,6 @@
 use std::fmt;
 use cpu;
+use interrupt;
 
 #[derive(Default)]
 pub struct Lcd {
@@ -17,11 +18,6 @@ pub struct Lcd {
 	dma: u8,  // DMA Transfer and Start Address (W)
     cycles: u32,
 }
-
-const FLAG_ZERO       : u8 = 0b1000_0000;
-const FLAG_SUBTRACT   : u8 = 0b0100_0000;
-const FLAG_HALF_CARRY : u8 = 0b0010_0000;
-const FLAG_CARRY      : u8 = 0b0001_0000;
 
 const LCD_CTL_ENABLE                         : u8 = 1<<7; // (0=Off, 1=On)
 const LCD_CTL_WINDOW_TILE_MAP_DISPLAY_SELECT : u8 = 1<<6; // (0=9800-9BFF, 1=9C00-9FFF)
@@ -42,12 +38,6 @@ const LCD_STATUS_MODE                     : u8 = 1<<1 | 1<<0; // (Mode 0-3) (Rea
                                                               //    1: During V-Blank
                                                               //    2: During Searching OAM-RAM
                                                               //    3: During Transfering Data to LCD Driver
-
-const INTERRUPT_VBLANK   : u8 = 1<<0;
-const INTERRUPT_LCD_STAT : u8 = 1<<1;
-const INTERRUPT_TIMER    : u8 = 1<<2;
-const INTERRUPT_SERIAL   : u8 = 1<<3;
-const INTERRUPT_JOYPAD   : u8 = 1<<4;
 
 impl fmt::Debug for Lcd {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -83,7 +73,7 @@ impl Lcd {
                     self.stat &= !0b11;
                     self.stat |= 0b10;
                     if self.interrupt_enabled(LCD_STATUS_MODE_2_OAM_INTERRUPT, mm) {
-                        mm.interrupt_flag |= INTERRUPT_LCD_STAT;
+                        mm.interrupt_flag |= interrupt::INTERRUPT_LCD_STAT;
                     }
                 }
             },
@@ -100,19 +90,19 @@ impl Lcd {
                     self.stat &= !0b11;
                     self.ly += 1;
                     if self.interrupt_enabled(LCD_STATUS_LY_COINCIDENCE_INTERRUPT, mm) && self.ly == self.lyc {
-                        mm.interrupt_flag |= INTERRUPT_LCD_STAT;
+                        mm.interrupt_flag |= interrupt::INTERRUPT_LCD_STAT;
                     }
                     if self.ly >= 144 {
                         if self.interrupt_enabled(LCD_STATUS_MODE_1_VBLANK_INTERRUPT, mm) {
-                            mm.interrupt_flag |= INTERRUPT_LCD_STAT;
+                            mm.interrupt_flag |= interrupt::INTERRUPT_LCD_STAT;
                         }
                         if mm.interrupt_master_enable {
-                            mm.interrupt_flag |= INTERRUPT_VBLANK;
+                            mm.interrupt_flag |= interrupt::INTERRUPT_VBLANK;
                         }
                         self.stat |= 1;
                     } else {
                         if self.interrupt_enabled(LCD_STATUS_MODE_0_HBLANK_INTERRUPT, mm) {
-                            mm.interrupt_flag |= INTERRUPT_LCD_STAT;
+                            mm.interrupt_flag |= interrupt::INTERRUPT_LCD_STAT;
                         }
                     }
                 }
@@ -122,12 +112,12 @@ impl Lcd {
                     self.cycles -= 456;
                     self.ly += 1;
                     if self.interrupt_enabled(LCD_STATUS_LY_COINCIDENCE_INTERRUPT, mm) && self.ly == self.lyc {
-                        mm.interrupt_flag |= INTERRUPT_LCD_STAT;
+                        mm.interrupt_flag |= interrupt::INTERRUPT_LCD_STAT;
                     }
                     if self.ly == 0 {
                         self.stat &= !0b11;
                         if self.interrupt_enabled(LCD_STATUS_MODE_0_HBLANK_INTERRUPT, mm) {
-                            mm.interrupt_flag |= INTERRUPT_LCD_STAT;
+                            mm.interrupt_flag |= interrupt::INTERRUPT_LCD_STAT;
                         }
                     }
                 }

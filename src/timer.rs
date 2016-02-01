@@ -1,5 +1,6 @@
 use std::fmt;
 use cpu;
+use interrupt;
 
 #[derive(Default)]
 pub struct Timer {
@@ -16,8 +17,6 @@ const TIMER_TAC_INPUT_CLOCK_SELECT : u8 = 1<<1 | 1<<0; // 00:   4096 Hz
                                                        // 01: 262144 Hz
                                                        // 10:  65536 Hz
                                                        // 11:  16384 Hz
-
-const INTERRUPT_TIMER    : u8 = 1<<2; // XXX
 
 impl fmt::Debug for Timer {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -48,6 +47,7 @@ impl Timer {
             _ => panic!("bad tac {}", self.tac),
         };
 
+        // increment tima based on selected clock
         self.last_tick += cycles;
         if self.last_tick >= cycles_per_tick {
             self.last_tick -= cycles_per_tick;
@@ -57,7 +57,7 @@ impl Timer {
             if self.tima == 0 {
                 self.tima = self.tma;
                 if mm.interrupt_master_enable {
-                    mm.interrupt_flag |= INTERRUPT_TIMER;
+                    mm.interrupt_flag |= interrupt::INTERRUPT_TIMER;
                 }
             }
         }
