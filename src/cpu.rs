@@ -1,5 +1,6 @@
 use std::fmt;
 use std::num;
+use std::convert;
 
 pub struct MemoryMap {
     pub rom: Vec<u8>,
@@ -35,51 +36,43 @@ impl fmt::Debug for Cpu {
 }
 
 impl MemoryMap {
-    fn write(&mut self, addr: u16, val: u8) {
-        // TODO
+    fn mmap_get_addr(&mut self, addr: u16) -> &mut u8 {
         match addr {
+            // rom bank 0
+            0 ... 0x3fff => {
+                return &mut self.rom[addr as usize];
+            },
+            // rom bank n
+            0x4000 ... 0x7fff => {
+                return &mut self.rom[addr as usize];
+            },
+            // vram
+            0x8000 ... 0x9fff => {
+                return &mut self.vram[addr as usize - 0x8000];
+            },
             // wram
             0xc000 ... 0xe000 => {
-                self.wram[addr as usize - 0xc000] = val;
+                return &mut self.wram[addr as usize - 0xc000];
             },
             // hram
             0xff80 ... 0xfffe => {
-                self.hram[addr as usize - 0xff80] = val;
+                return &mut self.hram[addr as usize - 0xff80];
             },
             _ => {
                 // TODO
-                panic!("MemoryMap.write() bad addr {}", addr);
+                panic!("mmap_get_addr() bad addr {:04x}", addr);
             }
         }
     }
 
-    fn read(&self, addr: u16) -> u8 {
-        match addr {
-            // rom bank 0
-            0 ... 0x3fff => {
-                return self.rom[addr as usize];
-            },
-            // rom bank n
-            0x4000 ... 0x7fff => {
-                return self.rom[addr as usize];
-            },
-            // vram
-            0x8000 ... 0x9fff => {
-                return self.vram[addr as usize - 0x8000];
-            },
-            // wram
-            0xc000 ... 0xe000 => {
-                return self.wram[addr as usize - 0xc000];
-            },
-            // hram
-            0xff80 ... 0xfffe => {
-                return self.hram[addr as usize - 0xff80];
-            },
-            _ => {
-                // TODO
-                panic!("MemoryMap.read() bad addr {}", addr);
-            }
-        }
+    fn write(&mut self, addr: u16, val: u8) {
+        let a = self.mmap_get_addr(addr);
+        *a = val;
+    }
+
+    fn read(&mut self, addr: u16) -> u8 {
+        let a = self.mmap_get_addr(addr);
+        return *a;
     }
 }
 
@@ -174,7 +167,7 @@ impl Cpu {
         }
     }
 
-    fn read_u16(&self, mm: &MemoryMap, pos: usize) -> u16 {
+    fn read_u16(&self, mm: &mut MemoryMap, pos: usize) -> u16 {
         let p = pos as u16;
         return (mm.read(p + 1) as u16) << 8 | (mm.read(p) as u16);
     }
@@ -356,7 +349,7 @@ impl Cpu {
         self.sp -= 2;
     }
 
-    fn read_return_addr(&mut self, mm: &MemoryMap) -> u16 {
+    fn read_return_addr(&mut self, mm: &mut MemoryMap) -> u16 {
         let lower = mm.read(self.sp);
         let upper = mm.read(self.sp + 1);
         self.sp += 2;
@@ -373,7 +366,7 @@ impl Cpu {
                 pc += 1;
             },
             0x01 => {
-                let val = self.read_u16(&mm, pc + 1);
+                let val = self.read_u16(mm, pc + 1);
                 trace!("ld bc, ${:04x}", val);
                 self.set_bc(val);
                 self.cycles += 12;
@@ -422,7 +415,7 @@ impl Cpu {
                 pc += 1;
             },
             0x08 => {
-                let val = self.read_u16(&mm, pc + 1);
+                let val = self.read_u16(mm, pc + 1);
                 trace!("ld (${:04x}), sp", val);
                 self.sp = val;
                 self.cycles += 20;
@@ -490,7 +483,7 @@ impl Cpu {
                 pc += 2;
             },
             0x11 => {
-                let val = self.read_u16(&mm, pc + 1);
+                let val = self.read_u16(mm, pc + 1);
                 trace!("ld de, ${:04x}", val);
                 self.set_de(val);
                 self.cycles += 12;
@@ -610,7 +603,7 @@ impl Cpu {
                 pc += 2;
             },
             0x21 => {
-                let val = self.read_u16(&mm, pc + 1);
+                let val = self.read_u16(mm, pc + 1);
                 trace!("ld hl, ${:04x}", val);
                 self.set_hl(val);
                 self.cycles += 12;
@@ -735,7 +728,7 @@ impl Cpu {
                 pc += 2;
             },
             0x31 => {
-                let val = self.read_u16(&mm, pc + 1);
+                let val = self.read_u16(mm, pc + 1);
                 trace!("ld sp, ${:04x}", val);
                 self.sp = val;
                 self.cycles += 12;
@@ -1691,19 +1684,19 @@ impl Cpu {
                 pc += 1;
             },
             0xc2 => {
-                let val = self.read_u16(&mm, pc + 1);
+                let val = self.read_u16(mm, pc + 1);
                 trace!("jp nz, ${:04x}", val);
                 self.cycles += 12; // 16
                 pc = val as usize;
             },
             0xc3 => {
-                let val = self.read_u16(&mm, pc + 1);
+                let val = self.read_u16(mm, pc + 1);
                 trace!("jp ${:04x}", val);
                 self.cycles += 16;
                 pc = val as usize;
             },
             0xc4 => {
-                let val = self.read_u16(&mm, pc + 1);
+                let val = self.read_u16(mm, pc + 1);
                 trace!("call nz, ${:04x}", val);
                 if !self.zero() {
                     let addr = self.pc + 3;
@@ -1750,7 +1743,7 @@ impl Cpu {
                 pc = addr as usize;
             },
             0xca => {
-                let val = self.read_u16(&mm, pc + 1);
+                let val = self.read_u16(mm, pc + 1);
                 trace!("jp z, ${:04x}", val);
                 self.cycles += 12; // 16
                 pc += 3;
@@ -1761,7 +1754,7 @@ impl Cpu {
                 pc += 1;
             },
             0xcc => {
-                let val = self.read_u16(&mm, pc + 1);
+                let val = self.read_u16(mm, pc + 1);
                 trace!("call z, ${:04x}", val);
                 if self.zero() {
                     let addr = self.pc + 3;
@@ -1774,7 +1767,7 @@ impl Cpu {
                 }
             },
             0xcd => {
-                let val = self.read_u16(&mm, pc + 1);
+                let val = self.read_u16(mm, pc + 1);
                 trace!("call ${:04x}", val);
                 let addr = self.pc + 3;
                 self.write_return_addr(mm, addr);
@@ -1810,13 +1803,13 @@ impl Cpu {
                 pc += 1;
             },
             0xd2 => {
-                let val = self.read_u16(&mm, pc + 1);
+                let val = self.read_u16(mm, pc + 1);
                 trace!("jp nc, ${:04x}", val);
                 self.cycles += 12; // 16
                 pc += 3;
             },
             0xd4 => {
-                let val = self.read_u16(&mm, pc + 1);
+                let val = self.read_u16(mm, pc + 1);
                 trace!("call nc, ${:04x}", val);
                 if !self.carry() {
                     let addr = self.pc + 3;
@@ -1862,13 +1855,13 @@ impl Cpu {
                 pc += 1;
             },
             0xda => {
-                let val = self.read_u16(&mm, pc + 1);
+                let val = self.read_u16(mm, pc + 1);
                 trace!("jp c, ${:04x}", val);
                 self.cycles += 12; // 16
                 pc += 3;
             },
             0xdc => {
-                let val = self.read_u16(&mm, pc + 1);
+                let val = self.read_u16(mm, pc + 1);
                 trace!("call c, ${:04x}", val);
                 if self.carry() {
                     let addr = self.pc + 3;
@@ -1937,7 +1930,7 @@ impl Cpu {
                 pc += 1;
             },
             0xea => {
-                let val = self.read_u16(&mm, pc + 1);
+                let val = self.read_u16(mm, pc + 1);
                 trace!("ld (${:04x}), a", val);
                 self.cycles += 16;
                 pc += 3;
@@ -2004,7 +1997,7 @@ impl Cpu {
                 pc += 1;
             },
             0xfa => {
-                let val = self.read_u16(&mm, pc + 1);
+                let val = self.read_u16(mm, pc + 1);
                 trace!("ld a, (${:04x})", val);
                 self.cycles += 16;
                 pc += 3;
@@ -2065,14 +2058,14 @@ fn test_cpu() {
     let wram : [u8; 0x2000] = [0; 0x2000];
     let hram : [u8; 0x80] = [0; 0x80];
     let mut mm = MemoryMap { rom: rom, vram: vram, wram: wram, hram: hram, interrupt_enable: false, interrupt_master_enable: false, interrupt_flag: 0 };
-    assert_eq!(cpu.read_u16(&mm, 0), 0x0100);
-    assert_eq!(cpu.read_u16(&mm, 2), 0x4523);
+    assert_eq!(cpu.read_u16(&mut mm, 0), 0x0100);
+    assert_eq!(cpu.read_u16(&mut mm, 2), 0x4523);
 
     cpu.write_return_addr(&mut mm, 0x1234);
     assert_eq!(cpu.sp, 0xfffc);
     assert_eq!(mm.read(cpu.sp), 0x34);
     assert_eq!(mm.read(cpu.sp + 1), 0x12);
-    assert_eq!(cpu.read_return_addr(&mm), 0x1234);
+    assert_eq!(cpu.read_return_addr(&mut mm), 0x1234);
 
     assert_eq!(cpu.rlc(23), 2*23);
     assert_eq!(cpu.rlc(46), 2*46);
