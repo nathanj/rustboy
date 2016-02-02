@@ -1,21 +1,22 @@
 use std::fmt;
 use cpu;
+use mem;
 use interrupt;
 
 #[derive(Default)]
 pub struct Lcd {
-	ctl: u8,  // LCD Control (R/W)
-	stat: u8, // LCDC Status (R/W)
-	scy: u8,  // Scroll Y (R/W)
-	scx: u8,  // Scroll X (R/W)
-	ly: u8,   // LCDC Y-Coordinate (R)
-	lyc: u8,  // LY Compare (R/W)
-	wy: u8,   // Window Y Position (R/W)
-	wx: u8,   // Window X Position minus 7 (R/W)
-	bgp: u8,  // BG Palette Data (R/W) - Non CGB Mode Only
-	obp0: u8, // Object Palette 0 Data (R/W) - Non CGB Mode Only
-	obp1: u8, // Object Palette 1 Data (R/W) - Non CGB Mode Only
-	dma: u8,  // DMA Transfer and Start Address (W)
+	pub ctl: u8,  // LCD Control (R/W)
+	pub stat: u8, // LCDC Status (R/W)
+	pub scy: u8,  // Scroll Y (R/W)
+	pub scx: u8,  // Scroll X (R/W)
+	pub ly: u8,   // LCDC Y-Coordinate (R)
+	pub lyc: u8,  // LY Compare (R/W)
+	pub wy: u8,   // Window Y Position (R/W)
+	pub wx: u8,   // Window X Position minus 7 (R/W)
+	pub bgp: u8,  // BG Palette Data (R/W) - Non CGB Mode Only
+	pub obp0: u8, // Object Palette 0 Data (R/W) - Non CGB Mode Only
+	pub obp1: u8, // Object Palette 1 Data (R/W) - Non CGB Mode Only
+	pub dma: u8,  // DMA Transfer and Start Address (W)
     cycles: u32,
 }
 
@@ -59,19 +60,19 @@ impl Lcd {
         return lcd;
     }
 
-    fn interrupt_enabled(&self, int: u8, mm: &cpu::MemoryMap) -> bool {
+    fn interrupt_enabled(&self, int: u8, mm: &mem::MemoryMap) -> bool {
         self.stat & int > 0 && mm.interrupt_master_enable
     }
 
-    pub fn run(&mut self, mm: &mut cpu::MemoryMap, cycles: u32) {
+    pub fn run(&mut self, mm: &mut mem::MemoryMap, cycles: u32) {
         trace!("{:?}", self);
         self.cycles += cycles;
         match self.stat & LCD_STATUS_MODE {
             0 => {
                 if self.cycles > 201 {
                     self.cycles -= 201;
-                    self.stat &= !0b11;
-                    self.stat |= 0b10;
+                    self.stat &= !3;
+                    self.stat |= 2;
                     if self.interrupt_enabled(LCD_STATUS_MODE_2_OAM_INTERRUPT, mm) {
                         mm.interrupt_flag |= interrupt::INTERRUPT_LCD_STAT;
                     }
@@ -80,15 +81,15 @@ impl Lcd {
             2 => {
                 if self.cycles > 77 {
                     self.cycles -= 77;
-                    self.stat &= !0b11;
-                    self.stat |= 0b11;
+                    self.stat &= !3;
+                    self.stat |= 3;
                 }
             },
             3 => {
                 if self.cycles > 169 {
                     self.cycles -= 169;
-                    self.stat &= !0b11;
-                    self.ly += 1;
+                    self.stat &= !3;
+                    self.ly = self.ly.wrapping_add(1);
                     if self.interrupt_enabled(LCD_STATUS_LY_COINCIDENCE_INTERRUPT, mm) && self.ly == self.lyc {
                         mm.interrupt_flag |= interrupt::INTERRUPT_LCD_STAT;
                     }
@@ -110,12 +111,12 @@ impl Lcd {
             1 => {
                 if self.cycles > 456 {
                     self.cycles -= 456;
-                    self.ly += 1;
+                    self.ly = self.ly.wrapping_add(1);
                     if self.interrupt_enabled(LCD_STATUS_LY_COINCIDENCE_INTERRUPT, mm) && self.ly == self.lyc {
                         mm.interrupt_flag |= interrupt::INTERRUPT_LCD_STAT;
                     }
                     if self.ly == 0 {
-                        self.stat &= !0b11;
+                        self.stat &= !3;
                         if self.interrupt_enabled(LCD_STATUS_MODE_0_HBLANK_INTERRUPT, mm) {
                             mm.interrupt_flag |= interrupt::INTERRUPT_LCD_STAT;
                         }

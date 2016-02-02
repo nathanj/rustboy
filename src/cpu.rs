@@ -1,16 +1,8 @@
 use std::fmt;
 use std::num;
 use std::convert;
-
-pub struct MemoryMap {
-    pub rom: Vec<u8>,
-    pub vram: [u8; 0x2000],
-    pub wram: [u8; 0x2000],
-    pub hram: [u8; 0x80],
-    pub interrupt_enable : bool,
-    pub interrupt_master_enable : bool,
-    pub interrupt_flag : u8,
-}
+use mem;
+use lcd;
 
 pub struct Cpu {
     a: u8,
@@ -32,47 +24,6 @@ impl fmt::Debug for Cpu {
                e:{:02x} h:{:02x} l:{:02x} pc:{:06x} sp:{:06x} cycles:{} }}",
                self.a, self.f, self.b, self.c, self.d, self.e, self.h, self.l,
                self.pc, self.sp, self.cycles)
-    }
-}
-
-impl MemoryMap {
-    fn mmap_get_addr(&mut self, addr: u16) -> &mut u8 {
-        match addr {
-            // rom bank 0
-            0 ... 0x3fff => {
-                return &mut self.rom[addr as usize];
-            },
-            // rom bank n
-            0x4000 ... 0x7fff => {
-                return &mut self.rom[addr as usize];
-            },
-            // vram
-            0x8000 ... 0x9fff => {
-                return &mut self.vram[addr as usize - 0x8000];
-            },
-            // wram
-            0xc000 ... 0xe000 => {
-                return &mut self.wram[addr as usize - 0xc000];
-            },
-            // hram
-            0xff80 ... 0xfffe => {
-                return &mut self.hram[addr as usize - 0xff80];
-            },
-            _ => {
-                // TODO
-                panic!("mmap_get_addr() bad addr {:04x}", addr);
-            }
-        }
-    }
-
-    fn write(&mut self, addr: u16, val: u8) {
-        let a = self.mmap_get_addr(addr);
-        *a = val;
-    }
-
-    fn read(&mut self, addr: u16) -> u8 {
-        let a = self.mmap_get_addr(addr);
-        return *a;
     }
 }
 
@@ -167,7 +118,7 @@ impl Cpu {
         }
     }
 
-    fn read_u16(&self, mm: &mut MemoryMap, pos: usize) -> u16 {
+    fn read_u16(&self, mm: &mut mem::MemoryMap, pos: usize) -> u16 {
         let p = pos as u16;
         return (mm.read(p + 1) as u16) << 8 | (mm.read(p) as u16);
     }
@@ -343,20 +294,20 @@ impl Cpu {
         return newval;
     }
 
-    fn write_return_addr(&mut self, mm: &mut MemoryMap, addr: u16) {
+    fn write_return_addr(&mut self, mm: &mut mem::MemoryMap, addr: u16) {
         mm.write(self.sp - 1, (addr >> 8) as u8);
         mm.write(self.sp - 2, (addr & 0xff) as u8);
         self.sp -= 2;
     }
 
-    fn read_return_addr(&mut self, mm: &mut MemoryMap) -> u16 {
+    fn read_return_addr(&mut self, mm: &mut mem::MemoryMap) -> u16 {
         let lower = mm.read(self.sp);
         let upper = mm.read(self.sp + 1);
         self.sp += 2;
         return (upper as u16) << 8 | (lower as u16);
     }
 
-    pub fn run(&mut self, mm: &mut MemoryMap) -> u32 {
+    pub fn run(&mut self, mm: &mut mem::MemoryMap) -> u32 {
         let mut pc = self.pc as usize;
         trace!("{:?}", self);
         match mm.rom[pc] {
@@ -2057,7 +2008,8 @@ fn test_cpu() {
     let vram : [u8; 0x2000] = [0; 0x2000];
     let wram : [u8; 0x2000] = [0; 0x2000];
     let hram : [u8; 0x80] = [0; 0x80];
-    let mut mm = MemoryMap { rom: rom, vram: vram, wram: wram, hram: hram, interrupt_enable: false, interrupt_master_enable: false, interrupt_flag: 0 };
+    let lcd = lcd::Lcd::new();
+    let mut mm = mem::MemoryMap { rom: rom, vram: vram, wram: wram, hram: hram, interrupt_enable: false, interrupt_master_enable: false, interrupt_flag: 0, lcd: lcd };
     assert_eq!(cpu.read_u16(&mut mm, 0), 0x0100);
     assert_eq!(cpu.read_u16(&mut mm, 2), 0x4523);
 

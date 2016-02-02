@@ -1,5 +1,6 @@
 use std::fmt;
 use cpu;
+use mem;
 use interrupt;
 
 #[derive(Default)]
@@ -34,7 +35,7 @@ impl Timer {
         return timer;
     }
 
-    pub fn run(&mut self, mm: &mut cpu::MemoryMap, cycles: u32) {
+    pub fn run(&mut self, mm: &mut mem::MemoryMap, cycles: u32) {
         if self.tac & TIMER_TAC_TIMER_STOP == 0 {
             return
         }
