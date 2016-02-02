@@ -1,6 +1,8 @@
 use std::fmt;
 use std::num;
 use std::convert;
+use std::cell::RefCell;
+use std::rc::Rc;
 use mem;
 use lcd;
 
@@ -2008,7 +2010,7 @@ fn test_cpu() {
     let vram : [u8; 0x2000] = [0; 0x2000];
     let wram : [u8; 0x2000] = [0; 0x2000];
     let hram : [u8; 0x80] = [0; 0x80];
-    let lcd = lcd::Lcd::new();
+    let lcd = Rc::new(RefCell::new(lcd::Lcd::new()));
     let mut mm = mem::MemoryMap { rom: rom, vram: vram, wram: wram, hram: hram, interrupt_enable: false, interrupt_master_enable: false, interrupt_flag: 0, lcd: lcd };
     assert_eq!(cpu.read_u16(&mut mm, 0), 0x0100);
     assert_eq!(cpu.read_u16(&mut mm, 2), 0x4523);

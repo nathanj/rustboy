@@ -10,6 +10,8 @@ use std::io::prelude::*;
 use std::fs::File;
 use std::env;
 use std::fmt;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use sdl2::pixels::Color;
 use sdl2::pixels::PixelFormatEnum;
@@ -26,7 +28,7 @@ mod mem;
 pub struct Gameboy {
     pub cpu: cpu::Cpu,
     pub mm: mem::MemoryMap,
-    pub lcd: lcd::Lcd,
+    pub lcd : Rc<RefCell<lcd::Lcd>>,
     //vram: [u8; 0x2000],
     //eram: [u8; 0x2000],
 }
@@ -65,15 +67,17 @@ fn main() {
     let vram : [u8; 0x2000] = [0; 0x2000];
     let wram : [u8; 0x2000] = [0; 0x2000];
     let hram : [u8; 0x80] = [0; 0x80];
-    let lcd = lcd::Lcd::new();
-    let mm = mem::MemoryMap { rom: rom, vram: vram, wram: wram, hram: hram, interrupt_enable: false, interrupt_master_enable: false, interrupt_flag: 0, lcd: lcd };
-    let mut gb = Gameboy { cpu: cpu, mm: mm, lcd: lcd };
+    let lcd = Rc::new(RefCell::new(lcd::Lcd::new()));
+    let mm = mem::MemoryMap { rom: rom, vram: vram, wram: wram, hram: hram,
+        interrupt_enable: false, interrupt_master_enable: false, interrupt_flag: 0,
+        lcd: lcd.clone() };
+    let mut gb = Gameboy { cpu: cpu, mm: mm, lcd: lcd.clone() };
 
     println!("cpu = {:?}", gb.cpu);
     let mut prevcycles = 0u32;
     loop {
         let cycles = gb.cpu.run(&mut gb.mm);
-        gb.lcd.run(&mut gb.mm, cycles - prevcycles);
+        gb.lcd.borrow_mut().run(&mut gb.mm, cycles - prevcycles);
         prevcycles = cycles;
         if cycles > 1000000 {
             break;

@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use lcd;
 
 pub struct MemoryMap {
@@ -8,42 +11,62 @@ pub struct MemoryMap {
     pub interrupt_enable : bool,
     pub interrupt_master_enable : bool,
     pub interrupt_flag : u8,
-    pub lcd : lcd::Lcd,
+    pub lcd : Rc<RefCell<lcd::Lcd>>,
 }
 
 impl MemoryMap {
-    fn ioport_get_addr(&mut self, addr: u16) -> &mut u8 {
+    fn ioport_write(&mut self, addr: u16, write: bool, val: u8) -> u8 {
         match addr {
-            0xff44 => &mut self.lcd.ly,
+            0xff44 => {
+                if write {
+                    self.lcd.borrow_mut().ly = val;
+                }
+                self.lcd.borrow().ly
+            }
             _ => panic!("bad addr {:04x}", addr),
         }
     }
 
-    fn mmap_get_addr(&mut self, addr: u16) -> &mut u8 {
+    fn mmap_get_addr(&mut self, addr: u16, write: bool, val: u8) -> u8 {
         match addr {
             // rom bank 0
             0 ... 0x3fff => {
-                return &mut self.rom[addr as usize];
+                if write {
+                    self.rom[addr as usize] = val;
+                }
+                self.rom[addr as usize]
             },
             // rom bank n
             0x4000 ... 0x7fff => {
-                return &mut self.rom[addr as usize];
+                if write {
+                    self.rom[addr as usize] = val;
+                }
+                self.rom[addr as usize]
             },
             // vram
             0x8000 ... 0x9fff => {
-                return &mut self.vram[addr as usize - 0x8000];
+                if write {
+                    self.vram[addr as usize - 0x8000] = val;
+                }
+                self.vram[addr as usize - 0x8000]
             },
             // wram
             0xc000 ... 0xe000 => {
-                return &mut self.wram[addr as usize - 0xc000];
+                if write {
+                    self.wram[addr as usize - 0xc000] = val;
+                }
+                self.wram[addr as usize - 0xc000]
             },
             // hram
             0xff80 ... 0xfffe => {
-                return &mut self.hram[addr as usize - 0xff80];
+                if write {
+                    self.hram[addr as usize - 0xff80] = val;
+                }
+                self.hram[addr as usize - 0xff80]
             },
             // ioports
             0xff00 ... 0xff7f => {
-                return self.ioport_get_addr(addr);
+                self.ioport_write(addr, write, 23)
             },
             _ => {
                 // TODO
@@ -53,12 +76,10 @@ impl MemoryMap {
     }
 
     pub fn write(&mut self, addr: u16, val: u8) {
-        let a = self.mmap_get_addr(addr);
-        *a = val;
+        self.mmap_get_addr(addr, true, val);
     }
 
     pub fn read(&mut self, addr: u16) -> u8 {
-        let a = self.mmap_get_addr(addr);
-        return *a;
+        self.mmap_get_addr(addr, false, 0)
     }
 }
