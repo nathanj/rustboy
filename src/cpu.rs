@@ -1632,15 +1632,20 @@ impl Cpu {
                 }
             },
             0xc1 => {
-                trace!("pop bc");
+                panic!("pop bc");
                 self.cycles += 12;
                 pc += 1;
             },
             0xc2 => {
                 let val = self.read_u16(mm, pc + 1);
                 trace!("jp nz, ${:04x}", val);
-                self.cycles += 12; // 16
-                pc = val as usize;
+                if !self.zero() {
+                    self.cycles += 16;
+                    pc = val as usize;
+                } else {
+                    self.cycles += 12;
+                    pc += 3;
+                }
             },
             0xc3 => {
                 let val = self.read_u16(mm, pc + 1);
@@ -1662,7 +1667,7 @@ impl Cpu {
                 }
             },
             0xc5 => {
-                trace!("push bc");
+                panic!("push bc");
                 self.cycles += 12; // 24
                 pc += 1;
             },
@@ -1674,7 +1679,7 @@ impl Cpu {
                 pc += 2;
             },
             0xc7 => {
-                trace!("rst 00");
+                panic!("rst 00");
                 self.cycles += 16;
                 pc += 1;
             },
@@ -1698,8 +1703,13 @@ impl Cpu {
             0xca => {
                 let val = self.read_u16(mm, pc + 1);
                 trace!("jp z, ${:04x}", val);
-                self.cycles += 12; // 16
-                pc += 3;
+                if self.zero() {
+                    self.cycles += 16;
+                    pc = val as usize;
+                } else {
+                    self.cycles += 12;
+                    pc += 3;
+                }
             },
             0xcb => {
                 panic!("prefix cb");
@@ -1735,7 +1745,7 @@ impl Cpu {
                 pc += 2;
             },
             0xcf => {
-                trace!("rst 08");
+                panic!("rst 08");
                 self.cycles += 16;
                 pc += 1;
             },
@@ -1751,15 +1761,20 @@ impl Cpu {
                 }
             },
             0xd1 => {
-                trace!("pop de");
+                panic!("pop de");
                 self.cycles += 12;
                 pc += 1;
             },
             0xd2 => {
                 let val = self.read_u16(mm, pc + 1);
                 trace!("jp nc, ${:04x}", val);
-                self.cycles += 12; // 16
-                pc += 3;
+                if !self.carry() {
+                    self.cycles += 16;
+                    pc = val as usize;
+                } else {
+                    self.cycles += 12;
+                    pc += 3;
+                }
             },
             0xd4 => {
                 let val = self.read_u16(mm, pc + 1);
@@ -1775,7 +1790,7 @@ impl Cpu {
                 }
             },
             0xd5 => {
-                trace!("push de");
+                panic!("push de");
                 self.cycles += 16;
                 pc += 1;
             },
@@ -1787,7 +1802,7 @@ impl Cpu {
                 pc += 2;
             },
             0xd7 => {
-                trace!("rst 10");
+                panic!("rst 10");
                 self.cycles += 16;
                 pc += 1;
             },
@@ -1803,15 +1818,20 @@ impl Cpu {
                 }
             },
             0xd9 => {
-                trace!("reti");
+                panic!("reti");
                 self.cycles += 16;
                 pc += 1;
             },
             0xda => {
                 let val = self.read_u16(mm, pc + 1);
                 trace!("jp c, ${:04x}", val);
-                self.cycles += 12; // 16
-                pc += 3;
+                if self.carry() {
+                    self.cycles += 16;
+                    pc = val as usize;
+                } else {
+                    self.cycles += 12;
+                    pc += 3;
+                }
             },
             0xdc => {
                 let val = self.read_u16(mm, pc + 1);
@@ -1834,28 +1854,33 @@ impl Cpu {
                 pc += 2;
             },
             0xdf => {
-                trace!("rst 18");
+                panic!("rst 18");
                 self.cycles += 16;
                 pc += 1;
             },
             0xe0 => {
                 let val = mm.rom[pc + 1];
                 trace!("ld ($ff00+{:02x}), a", val);
+                let addr = 0xff00 + val as u16;
+                trace!("a = {}", self.a);
+                mm.write(addr, self.a);
                 self.cycles += 12;
                 pc += 2;
             },
             0xe1 => {
-                trace!("pop hl");
+                panic!("pop hl");
                 self.cycles += 12;
                 pc += 1;
             },
             0xe2 => {
                 trace!("ld ($ff00+c), a");
+                let addr = 0xff00 + self.c as u16;
+                mm.write(addr, self.a);
                 self.cycles += 8;
                 pc += 1;
             },
             0xe5 => {
-                trace!("push hl");
+                panic!("push hl");
                 self.cycles += 16;
                 pc += 1;
             },
@@ -1867,18 +1892,19 @@ impl Cpu {
                 pc += 2;
             },
             0xe7 => {
-                trace!("rst $20");
+                panic!("rst $20");
                 self.cycles += 16;
                 pc += 1;
             },
             0xe8 => {
                 let val = mm.rom[pc + 1];
                 trace!("add sp, ${:02x}", val);
+                self.sp += val as u16;
                 self.cycles += 16;
                 pc += 2;
             },
             0xe9 => {
-                trace!("jp (hl)");
+                panic!("jp (hl)");
                 self.cycles += 4;
                 pc += 1;
             },
@@ -1896,33 +1922,38 @@ impl Cpu {
                 pc += 2;
             },
             0xef => {
-                trace!("rst $28");
+                panic!("rst $28");
                 self.cycles += 16;
                 pc += 1;
             },
             0xf0 => {
                 let val = mm.rom[pc + 1];
                 trace!("ld a, ($ff00+{:02x})", val);
+                let addr = 0xff00 + val as u16;
+                self.a = mm.read(addr);
                 self.cycles += 12;
                 pc += 2;
             },
             0xf1 => {
-                trace!("pop af");
+                panic!("pop af");
                 self.cycles += 12;
                 pc += 1;
             },
             0xf2 => {
                 trace!("ld a, ($ff00+c)");
+                let addr = 0xff00 + self.c as u16;
+                self.a = mm.read(addr);
                 self.cycles += 8;
                 pc += 1;
             },
             0xf3 => {
                 trace!("di");
+                mm.di();
                 self.cycles += 4;
                 pc += 1;
             },
             0xf5 => {
-                trace!("push af");
+                panic!("push af");
                 self.cycles += 16;
                 pc += 1;
             },
@@ -1934,29 +1965,30 @@ impl Cpu {
                 pc += 2;
             },
             0xf7 => {
-                trace!("rst $30");
+                panic!("rst $30");
                 self.cycles += 16;
                 pc += 1;
             },
             0xf8 => {
                 let val = mm.rom[pc + 1];
-                trace!("ld hl, sp+${:02x}", val);
+                panic!("ld hl, sp+${:02x}", val);
                 self.cycles += 12;
                 pc += 2;
             },
             0xf9 => {
-                trace!("ld sp, hl");
+                panic!("ld sp, hl");
                 self.cycles += 8;
                 pc += 1;
             },
             0xfa => {
                 let val = self.read_u16(mm, pc + 1);
-                trace!("ld a, (${:04x})", val);
+                panic!("ld a, (${:04x})", val);
                 self.cycles += 16;
                 pc += 3;
             },
             0xfb => {
                 trace!("ei");
+                mm.ei();
                 self.cycles += 4;
                 pc += 1;
             },
@@ -1968,7 +2000,7 @@ impl Cpu {
                 pc += 2;
             },
             0xff => {
-                trace!("rst $38");
+                panic!("rst $38");
                 self.cycles += 16;
                 pc += 1;
             },
@@ -2010,8 +2042,12 @@ fn test_cpu() {
     let vram : [u8; 0x2000] = [0; 0x2000];
     let wram : [u8; 0x2000] = [0; 0x2000];
     let hram : [u8; 0x80] = [0; 0x80];
+    let iobuf : [u8; 0x100] = [0; 0x100];
     let lcd = Rc::new(RefCell::new(lcd::Lcd::new()));
-    let mut mm = mem::MemoryMap { rom: rom, vram: vram, wram: wram, hram: hram, interrupt_enable: false, interrupt_master_enable: false, interrupt_flag: 0, lcd: lcd };
+    let mut mm = mem::MemoryMap { rom: rom, vram: vram, wram: wram, hram: hram,
+    iobuf: iobuf, interrupt_enable: 0, interrupt_master_enable: false,
+    oam: [0; 40],
+    interrupt_flag: 0, lcd: lcd };
     assert_eq!(cpu.read_u16(&mut mm, 0), 0x0100);
     assert_eq!(cpu.read_u16(&mut mm, 2), 0x4523);
 

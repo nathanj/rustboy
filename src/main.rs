@@ -67,9 +67,12 @@ fn main() {
     let vram : [u8; 0x2000] = [0; 0x2000];
     let wram : [u8; 0x2000] = [0; 0x2000];
     let hram : [u8; 0x80] = [0; 0x80];
+    let iobuf : [u8; 0x100] = [0; 0x100];
     let lcd = Rc::new(RefCell::new(lcd::Lcd::new()));
     let mm = mem::MemoryMap { rom: rom, vram: vram, wram: wram, hram: hram,
-        interrupt_enable: false, interrupt_master_enable: false, interrupt_flag: 0,
+        iobuf: iobuf,
+        interrupt_enable: 0, interrupt_master_enable: false, interrupt_flag: 0,
+        oam: [0; 40],
         lcd: lcd.clone() };
     let mut gb = Gameboy { cpu: cpu, mm: mm, lcd: lcd.clone() };
 
