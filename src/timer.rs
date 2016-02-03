@@ -5,10 +5,10 @@ use interrupt;
 
 #[derive(Default)]
 pub struct Timer {
-	div : u8,  // Divider Register (R/W)
-	tima : u8, // Timer Counter (R/W)
-	tma : u8,  // Timer Modulo (R/W)
-	tac : u8,  // Timer Control (R/W)
+	pub div : u8,  // Divider Register (R/W)
+	pub tima : u8, // Timer Counter (R/W)
+	pub tma : u8,  // Timer Modulo (R/W)
+	pub tac : u8,  // Timer Control (R/W)
 	last_tick : u32,
 	last_div_tick : u32,
 }

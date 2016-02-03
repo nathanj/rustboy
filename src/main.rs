@@ -24,11 +24,14 @@ mod lcd;
 mod timer;
 mod interrupt;
 mod mem;
+mod joypad;
 
 pub struct Gameboy {
     pub cpu: cpu::Cpu,
     pub mm: mem::MemoryMap,
     pub lcd : Rc<RefCell<lcd::Lcd>>,
+    pub timer : Rc<RefCell<timer::Timer>>,
+    pub joypad : Rc<RefCell<joypad::Joypad>>,
     //vram: [u8; 0x2000],
     //eram: [u8; 0x2000],
 }
@@ -69,23 +72,23 @@ fn main() {
     let hram : [u8; 0x80] = [0; 0x80];
     let iobuf : [u8; 0x100] = [0; 0x100];
     let lcd = Rc::new(RefCell::new(lcd::Lcd::new()));
+    let timer = Rc::new(RefCell::new(timer::Timer::new()));
+    let joypad = Rc::new(RefCell::new(joypad::Joypad::new()));
     let mm = mem::MemoryMap { rom: rom, vram: vram, wram: wram, hram: hram,
         iobuf: iobuf,
         interrupt_enable: 0, interrupt_master_enable: false, interrupt_flag: 0,
-        oam: [0; 40],
-        lcd: lcd.clone() };
-    let mut gb = Gameboy { cpu: cpu, mm: mm, lcd: lcd.clone() };
-
-    println!("cpu = {:?}", gb.cpu);
-    let mut prevcycles = 0u32;
-    loop {
-        let cycles = gb.cpu.run(&mut gb.mm);
-        gb.lcd.borrow_mut().run(&mut gb.mm, cycles - prevcycles);
-        prevcycles = cycles;
-        if cycles > 1000000 {
-            break;
-        }
-    }
+        oam: [0; 0xa0],
+        lcd: lcd.clone(),
+        timer: timer.clone(),
+        joypad: joypad.clone(),
+    };
+    let mut gb = Gameboy {
+        cpu: cpu,
+        mm: mm,
+        lcd: lcd.clone(),
+        timer: timer.clone(),
+        joypad: joypad.clone(),
+    };
 
     pixels[10100] = 10;
     pixels[10101] = 20;
@@ -107,16 +110,29 @@ fn main() {
 
     let mut event_pump = sdl_context.event_pump().unwrap();
 
+    let mut prevcycles = 0u32;
     'running: loop {
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
                     break 'running
                 },
+                Event::KeyDown { keycode: Some(keycode), .. } => {
+                    joypad.borrow_mut().handle_input(&mut gb.mm, keycode, true);
+                }
+                Event::KeyUp { keycode: Some(keycode), .. } => {
+                    joypad.borrow_mut().handle_input(&mut gb.mm, keycode, false);
+                }
                 _ => {}
             }
         }
-        break 'running
+
         // The rest of the game loop goes here...
+        let cycles = gb.cpu.run(&mut gb.mm);
+        gb.lcd.borrow_mut().run(&mut gb.mm, cycles - prevcycles);
+        prevcycles = cycles;
+        if cycles > 1000000 {
+            break;
+        }
     }
 }

@@ -2,6 +2,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use lcd;
+use timer;
+use joypad;
 
 pub struct MemoryMap {
     pub rom: Vec<u8>,
@@ -9,23 +11,25 @@ pub struct MemoryMap {
     pub wram: [u8; 0x2000],
     pub hram: [u8; 0x80],
     pub iobuf: [u8; 0x100],
-    pub oam: [u8; 40],
+    pub oam: [u8; 0xa0],
     pub interrupt_enable : u8,
     pub interrupt_master_enable : bool,
     pub interrupt_flag : u8,
     pub lcd : Rc<RefCell<lcd::Lcd>>,
+    pub timer : Rc<RefCell<timer::Timer>>,
+    pub joypad : Rc<RefCell<joypad::Joypad>>,
 }
 
 impl MemoryMap {
     fn handle_ioport(&mut self, addr: u16, write: bool, val: u8) -> u8 {
         match addr {
-            // 0xff00 => joypad
+            0xff00 => { if write { self.joypad.borrow_mut().flags = val; } self.joypad.borrow().flags }
             0xff01 => { 0 } // serial_transfer_data
             0xff02 => { 0 } // serial_transfer_control
-            // 0xff04 => timer.div
-            // 0xff05 => timer.tima
-            // 0xff06 => timer.tma
-            // 0xff07 => timer.tac
+            0xff04 => { if write { self.timer.borrow_mut().div = val; } self.timer.borrow().div }
+            0xff05 => { if write { self.timer.borrow_mut().tima = val; } self.timer.borrow().tima }
+            0xff06 => { if write { self.timer.borrow_mut().tma = val; } self.timer.borrow().tma }
+            0xff07 => { if write { self.timer.borrow_mut().tac = val; } self.timer.borrow().tac }
             0xff40 => { if write { self.lcd.borrow_mut().ctl = val; } self.lcd.borrow().ctl }
             0xff41 => { if write { self.lcd.borrow_mut().stat = val; } self.lcd.borrow().stat }
             0xff42 => { if write { self.lcd.borrow_mut().scy = val; } self.lcd.borrow().scy }
@@ -50,6 +54,7 @@ impl MemoryMap {
     }
 
     fn handle_addr(&mut self, addr: u16, write: bool, val: u8) -> u8 {
+        trace!("handing addr {:04x}", addr);
         match addr {
             // rom bank 0
             0 ... 0x3fff => {
@@ -86,6 +91,11 @@ impl MemoryMap {
                 }
                 self.oam[addr as usize - 0xfe00]
             },
+            // not usable area
+            0xfea0 ... 0xfeff => {
+                trace!("not usable {:04x}", addr);
+                0
+            }
             // ioports
             0xff00 ... 0xff7f => {
                 self.handle_ioport(addr, write, val)

@@ -3,8 +3,11 @@ use std::num;
 use std::convert;
 use std::cell::RefCell;
 use std::rc::Rc;
+
 use mem;
 use lcd;
+use timer;
+use joypad;
 
 pub struct Cpu {
     a: u8,
@@ -2044,10 +2047,16 @@ fn test_cpu() {
     let hram : [u8; 0x80] = [0; 0x80];
     let iobuf : [u8; 0x100] = [0; 0x100];
     let lcd = Rc::new(RefCell::new(lcd::Lcd::new()));
+    let timer = Rc::new(RefCell::new(timer::Timer::new()));
+    let joypad = Rc::new(RefCell::new(joypad::Joypad::new()));
     let mut mm = mem::MemoryMap { rom: rom, vram: vram, wram: wram, hram: hram,
     iobuf: iobuf, interrupt_enable: 0, interrupt_master_enable: false,
-    oam: [0; 40],
-    interrupt_flag: 0, lcd: lcd };
+    oam: [0; 0xa0],
+    interrupt_flag: 0,
+    lcd: lcd,
+    timer: timer,
+    joypad: joypad,
+    };
     assert_eq!(cpu.read_u16(&mut mm, 0), 0x0100);
     assert_eq!(cpu.read_u16(&mut mm, 2), 0x4523);
 
