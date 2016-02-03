@@ -65,7 +65,7 @@ impl Lcd {
     }
 
     pub fn run(&mut self, mm: &mut mem::MemoryMap, cycles: u32) {
-        trace!("{:?}", self);
+        //trace!("{:?}", self);
         self.cycles += cycles;
         match self.stat & LCD_STATUS_MODE {
             0 => {

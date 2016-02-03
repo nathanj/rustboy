@@ -130,7 +130,7 @@ impl Cpu {
 
     fn add(&mut self, val: u8) {
         let pa = self.a;
-        self.a.wrapping_add(val);
+        self.a = self.a.wrapping_add(val);
         let a = self.a;
         self.set_zero(a == 0);
         self.set_subtract(false);
@@ -145,7 +145,7 @@ impl Cpu {
 
     fn sub(&mut self, val: u8) {
         let pa = self.a;
-        self.a.wrapping_sub(val);
+        self.a = self.a.wrapping_sub(val);
         let a = self.a;
         self.set_zero(a == 0);
         self.set_subtract(true);
@@ -242,6 +242,17 @@ impl Cpu {
         return newval;
     }
 
+    fn srl(&mut self, val: u8) -> u8 {
+        // XXX
+        let carry = val & 0x1;
+        let newval = val >> 1;
+
+        self.set_carry(carry != 0);
+        self.set_zero(newval == 0);
+
+        return newval;
+    }
+
     fn rrc(&mut self, val: u8) -> u8 {
         let carry = val & 0x1;
         let mut newval = val >> 1;
@@ -267,6 +278,12 @@ impl Cpu {
         self.set_carry(carry == 1);
         self.set_zero(newval == 0);
         return newval;
+    }
+
+    fn swap(&mut self, val: u8) -> u8 {
+        let top = val >> 4;
+        let bottom = val & 0x0f;
+        return bottom << 4 | top;
     }
 
     fn inc(&mut self, val: u8) -> u8 {
@@ -310,6 +327,90 @@ impl Cpu {
         let upper = mm.read(self.sp + 1);
         self.sp += 2;
         return (upper as u16) << 8 | (lower as u16);
+    }
+
+    fn reg(&self, reg: u8) -> &'static str {
+        match reg {
+            0 => "b",
+            1 => "c",
+            _ => panic!("bad reg {}", reg),
+        }
+    }
+
+    fn handle_cb(&mut self, mm: &mut mem::MemoryMap) -> u32 {
+        let opcode = mm.rom[self.pc as usize + 1];
+        let mut cycles = 0u32;
+        trace!("opcode={:02x}", opcode);
+        match opcode {
+            0x00 => { trace!("rlc b"); let val = self.b; self.b = self.rlc(val); cycles += 8; },
+            0x01 => { trace!("rlc c"); let val = self.c; self.c = self.rlc(val); cycles += 8; },
+            0x02 => { trace!("rlc d"); let val = self.d; self.d = self.rlc(val); cycles += 8; },
+            0x03 => { trace!("rlc e"); let val = self.e; self.e = self.rlc(val); cycles += 8; },
+            0x04 => { trace!("rlc h"); let val = self.h; self.l = self.rlc(val); cycles += 8; },
+            0x05 => { trace!("rlc l"); let val = self.l; self.l = self.rlc(val); cycles += 8; },
+            0x06 => { trace!("rlc (hl)"); let hl = self.hl(); let val = self.rlc(mm.read(hl)); mm.write(hl, val); cycles += 16; },
+            0x07 => { trace!("rlc a"); let val = self.a; self.a = self.rlc(val); cycles += 8; },
+            0x08 => { trace!("rrc b"); let val = self.b; self.b = self.rrc(val); cycles += 8; },
+            0x09 => { trace!("rrc c"); let val = self.c; self.c = self.rrc(val); cycles += 8; },
+            0x0a => { trace!("rrc d"); let val = self.d; self.d = self.rrc(val); cycles += 8; },
+            0x0b => { trace!("rrc e"); let val = self.e; self.e = self.rrc(val); cycles += 8; },
+            0x0c => { trace!("rrc h"); let val = self.h; self.l = self.rrc(val); cycles += 8; },
+            0x0d => { trace!("rrc l"); let val = self.l; self.l = self.rrc(val); cycles += 8; },
+            0x0e => { trace!("rrc (hl)"); let hl = self.hl(); let val = self.rrc(mm.read(hl)); mm.write(hl, val); cycles += 16; },
+            0x0f => { trace!("rrc a"); let val = self.a; self.a = self.rrc(val); cycles += 8; },
+            0x10 => { trace!("rl b"); let val = self.b; self.b = self.rl(val); cycles += 8; },
+            0x11 => { trace!("rl c"); let val = self.c; self.c = self.rl(val); cycles += 8; },
+            0x12 => { trace!("rl d"); let val = self.d; self.d = self.rl(val); cycles += 8; },
+            0x13 => { trace!("rl e"); let val = self.e; self.e = self.rl(val); cycles += 8; },
+            0x14 => { trace!("rl h"); let val = self.h; self.l = self.rl(val); cycles += 8; },
+            0x15 => { trace!("rl l"); let val = self.l; self.l = self.rl(val); cycles += 8; },
+            0x16 => { trace!("rl (hl)"); let hl = self.hl(); let val = self.rl(mm.read(hl)); mm.write(hl, val); cycles += 16; },
+            0x17 => { trace!("rl a"); let val = self.a; self.a = self.rl(val); cycles += 8; },
+            0x18 => { trace!("rr b"); let val = self.b; self.b = self.rr(val); cycles += 8; },
+            0x19 => { trace!("rr c"); let val = self.c; self.c = self.rr(val); cycles += 8; },
+            0x1a => { trace!("rr d"); let val = self.d; self.d = self.rr(val); cycles += 8; },
+            0x1b => { trace!("rr e"); let val = self.e; self.e = self.rr(val); cycles += 8; },
+            0x1c => { trace!("rr h"); let val = self.h; self.l = self.rr(val); cycles += 8; },
+            0x1d => { trace!("rr l"); let val = self.l; self.l = self.rr(val); cycles += 8; },
+            0x1e => { trace!("rr (hl)"); let hl = self.hl(); let val = self.rr(mm.read(hl)); mm.write(hl, val); cycles += 16; },
+            0x1f => { trace!("rr a"); let val = self.a; self.a = self.rr(val); cycles += 8; },
+            0x20 => { trace!("sla b"); let val = self.b; self.b = self.sla(val); cycles += 8; },
+            0x21 => { trace!("sla c"); let val = self.c; self.c = self.sla(val); cycles += 8; },
+            0x22 => { trace!("sla d"); let val = self.d; self.d = self.sla(val); cycles += 8; },
+            0x23 => { trace!("sla e"); let val = self.e; self.e = self.sla(val); cycles += 8; },
+            0x24 => { trace!("sla h"); let val = self.h; self.l = self.sla(val); cycles += 8; },
+            0x25 => { trace!("sla l"); let val = self.l; self.l = self.sla(val); cycles += 8; },
+            0x26 => { trace!("sla (hl)"); let hl = self.hl(); let val = self.sla(mm.read(hl)); mm.write(hl, val); cycles += 16; },
+            0x27 => { trace!("sla a"); let val = self.a; self.a = self.sla(val); cycles += 8; },
+            0x28 => { trace!("sra b"); let val = self.b; self.b = self.sra(val); cycles += 8; },
+            0x29 => { trace!("sra c"); let val = self.c; self.c = self.sra(val); cycles += 8; },
+            0x2a => { trace!("sra d"); let val = self.d; self.d = self.sra(val); cycles += 8; },
+            0x2b => { trace!("sra e"); let val = self.e; self.e = self.sra(val); cycles += 8; },
+            0x2c => { trace!("sra h"); let val = self.h; self.l = self.sra(val); cycles += 8; },
+            0x2d => { trace!("sra l"); let val = self.l; self.l = self.sra(val); cycles += 8; },
+            0x2e => { trace!("sra (hl)"); let hl = self.hl(); let val = self.sra(mm.read(hl)); mm.write(hl, val); cycles += 16; },
+            0x2f => { trace!("sra a"); let val = self.a; self.a = self.sra(val); cycles += 8; },
+            0x30 => { trace!("swap b"); let val = self.b; self.b = self.swap(val); cycles += 8; },
+            0x31 => { trace!("swap c"); let val = self.c; self.c = self.swap(val); cycles += 8; },
+            0x32 => { trace!("swap d"); let val = self.d; self.d = self.swap(val); cycles += 8; },
+            0x33 => { trace!("swap e"); let val = self.e; self.e = self.swap(val); cycles += 8; },
+            0x34 => { trace!("swap h"); let val = self.h; self.l = self.swap(val); cycles += 8; },
+            0x35 => { trace!("swap l"); let val = self.l; self.l = self.swap(val); cycles += 8; },
+            0x36 => { trace!("swap (hl)"); let hl = self.hl(); let val = self.swap(mm.read(hl)); mm.write(hl, val); cycles += 16; },
+            0x37 => { trace!("swap a"); let val = self.a; self.a = self.swap(val); cycles += 8; },
+            0x38 => { trace!("srl b"); let val = self.b; self.b = self.srl(val); cycles += 8; },
+            0x39 => { trace!("srl c"); let val = self.c; self.c = self.srl(val); cycles += 8; },
+            0x3a => { trace!("srl d"); let val = self.d; self.d = self.srl(val); cycles += 8; },
+            0x3b => { trace!("srl e"); let val = self.e; self.e = self.srl(val); cycles += 8; },
+            0x3c => { trace!("srl h"); let val = self.h; self.l = self.srl(val); cycles += 8; },
+            0x3d => { trace!("srl l"); let val = self.l; self.l = self.srl(val); cycles += 8; },
+            0x3e => { trace!("srl (hl)"); let hl = self.hl(); let val = self.srl(mm.read(hl)); mm.write(hl, val); cycles += 16; },
+            0x3f => { trace!("srl a"); let val = self.a; self.a = self.srl(val); cycles += 8; },
+            _ => {
+                panic!("bad cb opcode {:02x}", opcode);
+            }
+        }
+        return cycles
     }
 
     pub fn run(&mut self, mm: &mut mem::MemoryMap) -> u32 {
@@ -1682,9 +1783,11 @@ impl Cpu {
                 pc += 2;
             },
             0xc7 => {
-                panic!("rst 00");
+                trace!("rst 00");
+                let addr = self.pc + 3;
+                self.write_return_addr(mm, addr);
                 self.cycles += 16;
-                pc += 1;
+                pc = 0x0;
             },
             0xc8 => {
                 trace!("ret z");
@@ -1715,9 +1818,10 @@ impl Cpu {
                 }
             },
             0xcb => {
-                panic!("prefix cb");
-                self.cycles += 4;
-                pc += 1;
+                trace!("prefix cb");
+                let c = self.handle_cb(mm);
+                self.cycles += c;
+                pc += 2;
             },
             0xcc => {
                 let val = self.read_u16(mm, pc + 1);
@@ -1748,9 +1852,11 @@ impl Cpu {
                 pc += 2;
             },
             0xcf => {
-                panic!("rst 08");
+                trace!("rst 08");
+                let addr = self.pc + 3;
+                self.write_return_addr(mm, addr);
                 self.cycles += 16;
-                pc += 1;
+                pc = 0x8;
             },
             0xd0 => {
                 trace!("ret nc");
@@ -1805,9 +1911,11 @@ impl Cpu {
                 pc += 2;
             },
             0xd7 => {
-                panic!("rst 10");
+                trace!("rst 10");
+                let addr = self.pc + 3;
+                self.write_return_addr(mm, addr);
                 self.cycles += 16;
-                pc += 1;
+                pc = 0x10;
             },
             0xd8 => {
                 trace!("ret c");
@@ -1857,15 +1965,16 @@ impl Cpu {
                 pc += 2;
             },
             0xdf => {
-                panic!("rst 18");
+                trace!("rst 18");
+                let addr = self.pc + 3;
+                self.write_return_addr(mm, addr);
                 self.cycles += 16;
-                pc += 1;
+                pc = 0x18;
             },
             0xe0 => {
                 let val = mm.rom[pc + 1];
                 trace!("ld ($ff00+{:02x}), a", val);
                 let addr = 0xff00 + val as u16;
-                trace!("a = {}", self.a);
                 mm.write(addr, self.a);
                 self.cycles += 12;
                 pc += 2;
@@ -1895,9 +2004,11 @@ impl Cpu {
                 pc += 2;
             },
             0xe7 => {
-                panic!("rst $20");
+                trace!("rst $20");
+                let addr = self.pc + 3;
+                self.write_return_addr(mm, addr);
                 self.cycles += 16;
-                pc += 1;
+                pc = 0x20;
             },
             0xe8 => {
                 let val = mm.rom[pc + 1];
@@ -1925,9 +2036,11 @@ impl Cpu {
                 pc += 2;
             },
             0xef => {
-                panic!("rst $28");
+                trace!("rst $28");
+                let addr = self.pc + 3;
+                self.write_return_addr(mm, addr);
                 self.cycles += 16;
-                pc += 1;
+                pc = 0x28;
             },
             0xf0 => {
                 let val = mm.rom[pc + 1];
@@ -1968,9 +2081,11 @@ impl Cpu {
                 pc += 2;
             },
             0xf7 => {
-                panic!("rst $30");
+                trace!("rst $30");
+                let addr = self.pc + 3;
+                self.write_return_addr(mm, addr);
                 self.cycles += 16;
-                pc += 1;
+                pc = 0x30;
             },
             0xf8 => {
                 let val = mm.rom[pc + 1];
@@ -2003,9 +2118,11 @@ impl Cpu {
                 pc += 2;
             },
             0xff => {
-                panic!("rst $38");
+                trace!("rst $38");
+                let addr = self.pc + 3;
+                self.write_return_addr(mm, addr);
                 self.cycles += 16;
-                pc += 1;
+                pc = 0x38;
             },
             _ => panic!("unknown instruction {:02x} @ pc={:04x}", mm.rom[pc], pc),
         }

@@ -54,7 +54,6 @@ impl MemoryMap {
     }
 
     fn handle_addr(&mut self, addr: u16, write: bool, val: u8) -> u8 {
-        trace!("handing addr {:04x}", addr);
         match addr {
             // rom bank 0
             0 ... 0x3fff => {
