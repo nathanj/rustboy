@@ -26,12 +26,12 @@ mod interrupt;
 mod mem;
 mod joypad;
 
-pub struct Gameboy {
-    pub cpu: cpu::Cpu,
-    pub mm: mem::MemoryMap,
-    pub lcd : Rc<RefCell<lcd::Lcd>>,
-    pub timer : Rc<RefCell<timer::Timer>>,
-    pub joypad : Rc<RefCell<joypad::Joypad>>,
+struct Gameboy {
+    cpu: cpu::Cpu,
+    mm: mem::MemoryMap,
+    lcd : Rc<RefCell<lcd::Lcd>>,
+    timer : Rc<RefCell<timer::Timer>>,
+    joypad : Rc<RefCell<joypad::Joypad>>,
     //vram: [u8; 0x2000],
     //eram: [u8; 0x2000],
 }

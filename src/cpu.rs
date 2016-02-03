@@ -123,9 +123,8 @@ impl Cpu {
         }
     }
 
-    fn read_u16(&self, mm: &mut mem::MemoryMap, pos: usize) -> u16 {
-        let p = pos as u16;
-        return (mm.read(p + 1) as u16) << 8 | (mm.read(p) as u16);
+    fn read_u16(&self, mm: &mut mem::MemoryMap, pos: u16) -> u16 {
+        return (mm.read(pos + 1) as u16) << 8 | (mm.read(pos) as u16);
     }
 
     fn add(&mut self, val: u8) {
@@ -316,13 +315,13 @@ impl Cpu {
         return newval;
     }
 
-    fn write_return_addr(&mut self, mm: &mut mem::MemoryMap, addr: u16) {
+    fn stack_write_u16(&mut self, mm: &mut mem::MemoryMap, addr: u16) {
         mm.write(self.sp - 1, (addr >> 8) as u8);
         mm.write(self.sp - 2, (addr & 0xff) as u8);
         self.sp -= 2;
     }
 
-    fn read_return_addr(&mut self, mm: &mut mem::MemoryMap) -> u16 {
+    fn stack_read_u16(&mut self, mm: &mut mem::MemoryMap) -> u16 {
         let lower = mm.read(self.sp);
         let upper = mm.read(self.sp + 1);
         self.sp += 2;
@@ -414,9 +413,12 @@ impl Cpu {
     }
 
     pub fn run(&mut self, mm: &mut mem::MemoryMap) -> u32 {
-        let mut pc = self.pc as usize;
+        let mut pc = self.pc;
         trace!("{:?}", self);
-        match mm.rom[pc] {
+        if pc == 0x28 {
+            mm.dump_hram();
+        }
+        match mm.read(pc) {
             0x00 => {
                 trace!("nop");
                 self.cycles += 4;
@@ -458,7 +460,7 @@ impl Cpu {
                 pc += 1;
             },
             0x06 => {
-                let val = mm.rom[pc + 1];
+                let val = mm.read(pc + 1);
                 trace!("ld b, ${:02x}", val);
                 self.b = val;
                 self.cycles += 8;
@@ -473,8 +475,7 @@ impl Cpu {
             },
             0x08 => {
                 let val = self.read_u16(mm, pc + 1);
-                trace!("ld (${:04x}), sp", val);
-                self.sp = val;
+                panic!("ld (${:04x}), sp", val);
                 self.cycles += 20;
                 pc += 3;
             },
@@ -518,7 +519,7 @@ impl Cpu {
                 pc += 1;
             },
             0x0e => {
-                let val = mm.rom[pc + 1];
+                let val = mm.read(pc + 1);
                 trace!("ld c, ${:02x}", val);
                 self.c = val;
                 let c = self.c;
@@ -575,7 +576,7 @@ impl Cpu {
                 pc += 1;
             },
             0x16 => {
-                let val = mm.rom[pc + 1];
+                let val = mm.read(pc + 1);
                 trace!("ld d, ${:02x}", val);
                 self.d = val;
                 self.cycles += 8;
@@ -589,9 +590,9 @@ impl Cpu {
                 pc += 1;
             },
             0x18 => {
-                let val = mm.rom[pc + 1] as i8;
+                let val = mm.read(pc + 1) as i8;
                 trace!("jr ${:02x}", val);
-                pc = ((pc as isize) + (val as isize)) as usize;
+                pc = ((pc as isize) + (val as isize)) as u16;
                 self.cycles += 12;
                 pc += 2;
             },
@@ -599,6 +600,7 @@ impl Cpu {
                 trace!("add hl, de");
                 let de = self.de();
                 let hl = self.hl();
+                trace!("hl={:04x} de={:04x}", hl, de);
                 self.set_hl(hl.wrapping_add(de));
                 self.set_subtract(false);
                 self.set_half_carry(false);
@@ -635,7 +637,7 @@ impl Cpu {
                 pc += 1;
             },
             0x1e => {
-                let val = mm.rom[pc + 1];
+                let val = mm.read(pc + 1);
                 trace!("ld e, ${:02x}", val);
                 self.e = val;
                 self.cycles += 8;
@@ -649,10 +651,10 @@ impl Cpu {
                 pc += 1;
             },
             0x20 => {
-                let val = mm.rom[pc + 1] as i8;
+                let val = mm.read(pc + 1) as i8;
                 trace!("jr nz, #{}", val);
                 if !self.zero() {
-                    pc = ((pc as isize) + (val as isize)) as usize;
+                    pc = ((pc as isize) + (val as isize)) as u16;
                     self.cycles += 12;
                 } else {
                     self.cycles += 8;
@@ -697,7 +699,7 @@ impl Cpu {
                 pc += 1;
             },
             0x26 => {
-                let val = mm.rom[pc + 1];
+                let val = mm.read(pc + 1);
                 trace!("ld h, ${:02x}", val);
                 self.h = val;
                 self.cycles += 8;
@@ -710,10 +712,10 @@ impl Cpu {
                 pc += 1;
             },
             0x28 => {
-                let val = mm.rom[pc + 1] as i8;
+                let val = mm.read(pc + 1) as i8;
                 trace!("jr z, #{}", val);
                 if self.zero() {
-                    pc = ((pc as isize) + (val as isize)) as usize;
+                    pc = ((pc as isize) + (val as isize)) as u16;
                     self.cycles += 12;
                 } else {
                     self.cycles += 8;
@@ -759,7 +761,7 @@ impl Cpu {
                 pc += 1;
             },
             0x2e => {
-                let val = mm.rom[pc + 1];
+                let val = mm.read(pc + 1);
                 trace!("ld l, ${:02x}", val);
                 self.l = val;
                 self.cycles += 8;
@@ -774,10 +776,10 @@ impl Cpu {
                 pc += 1;
             },
             0x30 => {
-                let val = mm.rom[pc + 1] as i8;
+                let val = mm.read(pc + 1) as i8;
                 trace!("jr nc, #{}", val);
                 if !self.carry() {
-                    pc = ((pc as isize) + (val as isize)) as usize;
+                    pc = ((pc as isize) + (val as isize)) as u16;
                     self.cycles += 12;
                 } else {
                     self.cycles += 8;
@@ -824,7 +826,7 @@ impl Cpu {
                 pc += 1;
             },
             0x36 => {
-                let val = mm.rom[pc + 1];
+                let val = mm.read(pc + 1);
                 trace!("ld (hl), ${:02x}", val);
                 mm.write(self.hl(), val);
                 self.cycles += 12;
@@ -836,10 +838,10 @@ impl Cpu {
                 pc += 1;
             },
             0x38 => {
-                let val = mm.rom[pc + 1] as i8;
+                let val = mm.read(pc + 1) as i8;
                 trace!("jr c, #{}", val);
                 if self.carry() {
-                    pc = ((pc as isize) + (val as isize)) as usize;
+                    pc = ((pc as isize) + (val as isize)) as u16;
                     self.cycles += 12;
                 } else {
                     self.cycles += 8;
@@ -884,7 +886,7 @@ impl Cpu {
                 pc += 1;
             },
             0x3e => {
-                let val = mm.rom[pc + 1];
+                let val = mm.read(pc + 1);
                 trace!("ld a, ${:02x}", val);
                 self.a = val;
                 self.cycles += 8;
@@ -992,50 +994,50 @@ impl Cpu {
                 pc += 1;
             },
             0x50 => {
-                trace!("ld c, b");
-                self.c = self.b;
+                trace!("ld d, b");
+                self.d = self.b;
                 self.cycles += 4;
                 pc += 1;
             },
             0x51 => {
-                trace!("ld c, c");
-                self.c = self.c;
+                trace!("ld d, c");
+                self.d = self.c;
                 self.cycles += 4;
                 pc += 1;
             },
             0x52 => {
-                trace!("ld c, d");
-                self.c = self.d;
+                trace!("ld d, d");
+                self.d = self.d;
                 self.cycles += 4;
                 pc += 1;
             },
             0x53 => {
-                trace!("ld c, e");
-                self.c = self.e;
+                trace!("ld d, e");
+                self.d = self.e;
                 self.cycles += 4;
                 pc += 1;
             },
             0x54 => {
-                trace!("ld c, h");
-                self.c = self.h;
+                trace!("ld d, h");
+                self.d = self.h;
                 self.cycles += 4;
                 pc += 1;
             },
             0x55 => {
-                trace!("ld c, l");
-                self.c = self.l;
+                trace!("ld d, l");
+                self.d = self.l;
                 self.cycles += 4;
                 pc += 1;
             },
             0x56 => {
-                trace!("ld c, (hl)");
-                self.c = mm.read(self.hl());
+                trace!("ld d, (hl)");
+                self.d = mm.read(self.hl());
                 self.cycles += 8;
                 pc += 1;
             },
             0x57 => {
-                trace!("ld c, a");
-                self.c = self.a;
+                trace!("ld d, a");
+                self.d = self.a;
                 self.cycles += 4;
                 pc += 1;
             },
@@ -1727,16 +1729,18 @@ impl Cpu {
             0xc0 => {
                 trace!("ret nz");
                 if !self.zero() {
-                    let addr = self.read_return_addr(mm);
+                    let addr = self.stack_read_u16(mm);
                     self.cycles += 20;
-                    pc = addr as usize;
+                    pc = addr;
                 } else {
                     self.cycles += 8;
                     pc += 1;
                 }
             },
             0xc1 => {
-                panic!("pop bc");
+                trace!("pop bc");
+                let val = self.stack_read_u16(mm);
+                self.set_bc(val);
                 self.cycles += 12;
                 pc += 1;
             },
@@ -1745,7 +1749,7 @@ impl Cpu {
                 trace!("jp nz, ${:04x}", val);
                 if !self.zero() {
                     self.cycles += 16;
-                    pc = val as usize;
+                    pc = val;
                 } else {
                     self.cycles += 12;
                     pc += 3;
@@ -1755,28 +1759,30 @@ impl Cpu {
                 let val = self.read_u16(mm, pc + 1);
                 trace!("jp ${:04x}", val);
                 self.cycles += 16;
-                pc = val as usize;
+                pc = val;
             },
             0xc4 => {
                 let val = self.read_u16(mm, pc + 1);
                 trace!("call nz, ${:04x}", val);
                 if !self.zero() {
                     let addr = self.pc + 3;
-                    self.write_return_addr(mm, addr);
+                    self.stack_write_u16(mm, addr);
                     self.cycles += 24;
-                    pc = val as usize;
+                    pc = val;
                 } else {
                     self.cycles += 12;
                     pc += 3;
                 }
             },
             0xc5 => {
-                panic!("push bc");
-                self.cycles += 12; // 24
+                trace!("push bc");
+                let val = self.bc();
+                self.stack_write_u16(mm, val);
+                self.cycles += 16;
                 pc += 1;
             },
             0xc6 => {
-                let val = mm.rom[pc + 1];
+                let val = mm.read(pc + 1);
                 trace!("add a, ${:02x}", val);
                 self.add(val);
                 self.cycles += 8;
@@ -1784,17 +1790,17 @@ impl Cpu {
             },
             0xc7 => {
                 trace!("rst 00");
-                let addr = self.pc + 3;
-                self.write_return_addr(mm, addr);
+                let addr = self.pc + 1;
+                self.stack_write_u16(mm, addr);
                 self.cycles += 16;
                 pc = 0x0;
             },
             0xc8 => {
                 trace!("ret z");
                 if self.zero() {
-                    let addr = self.read_return_addr(mm);
+                    let addr = self.stack_read_u16(mm);
                     self.cycles += 20;
-                    pc = addr as usize;
+                    pc = addr;
                 } else {
                     self.cycles += 8;
                     pc += 1;
@@ -1802,16 +1808,16 @@ impl Cpu {
             },
             0xc9 => {
                 trace!("ret");
-                let addr = self.read_return_addr(mm);
+                let addr = self.stack_read_u16(mm);
                 self.cycles += 16;
-                pc = addr as usize;
+                pc = addr;
             },
             0xca => {
                 let val = self.read_u16(mm, pc + 1);
                 trace!("jp z, ${:04x}", val);
                 if self.zero() {
                     self.cycles += 16;
-                    pc = val as usize;
+                    pc = val;
                 } else {
                     self.cycles += 12;
                     pc += 3;
@@ -1828,9 +1834,9 @@ impl Cpu {
                 trace!("call z, ${:04x}", val);
                 if self.zero() {
                     let addr = self.pc + 3;
-                    self.write_return_addr(mm, addr);
+                    self.stack_write_u16(mm, addr);
                     self.cycles += 24;
-                    pc = val as usize;
+                    pc = val;
                 } else {
                     self.cycles += 12;
                     pc += 3;
@@ -1840,12 +1846,12 @@ impl Cpu {
                 let val = self.read_u16(mm, pc + 1);
                 trace!("call ${:04x}", val);
                 let addr = self.pc + 3;
-                self.write_return_addr(mm, addr);
+                self.stack_write_u16(mm, addr);
                 self.cycles += 24;
-                pc = val as usize;
+                pc = val;
             },
             0xce => {
-                let val = mm.rom[pc + 1];
+                let val = mm.read(pc + 1);
                 trace!("adc ${:02x}", val);
                 self.adc(val);
                 self.cycles += 8;
@@ -1853,24 +1859,26 @@ impl Cpu {
             },
             0xcf => {
                 trace!("rst 08");
-                let addr = self.pc + 3;
-                self.write_return_addr(mm, addr);
+                let addr = self.pc + 1;
+                self.stack_write_u16(mm, addr);
                 self.cycles += 16;
                 pc = 0x8;
             },
             0xd0 => {
                 trace!("ret nc");
                 if !self.carry() {
-                    let addr = self.read_return_addr(mm);
+                    let addr = self.stack_read_u16(mm);
                     self.cycles += 20;
-                    pc = addr as usize;
+                    pc = addr;
                 } else {
                     self.cycles += 8;
                     pc += 1;
                 }
             },
             0xd1 => {
-                panic!("pop de");
+                trace!("pop de");
+                let val = self.stack_read_u16(mm);
+                self.set_de(val);
                 self.cycles += 12;
                 pc += 1;
             },
@@ -1879,7 +1887,7 @@ impl Cpu {
                 trace!("jp nc, ${:04x}", val);
                 if !self.carry() {
                     self.cycles += 16;
-                    pc = val as usize;
+                    pc = val;
                 } else {
                     self.cycles += 12;
                     pc += 3;
@@ -1890,21 +1898,23 @@ impl Cpu {
                 trace!("call nc, ${:04x}", val);
                 if !self.carry() {
                     let addr = self.pc + 3;
-                    self.write_return_addr(mm, addr);
+                    self.stack_write_u16(mm, addr);
                     self.cycles += 24;
-                    pc = val as usize;
+                    pc = val;
                 } else {
                     self.cycles += 12;
                     pc += 3;
                 }
             },
             0xd5 => {
-                panic!("push de");
+                trace!("push de");
+                let val = self.de();
+                self.stack_write_u16(mm, val);
                 self.cycles += 16;
                 pc += 1;
             },
             0xd6 => {
-                let val = mm.rom[pc + 1];
+                let val = mm.read(pc + 1);
                 trace!("sub ${:02x}", val);
                 self.sub(val);
                 self.cycles += 8;
@@ -1912,17 +1922,17 @@ impl Cpu {
             },
             0xd7 => {
                 trace!("rst 10");
-                let addr = self.pc + 3;
-                self.write_return_addr(mm, addr);
+                let addr = self.pc + 1;
+                self.stack_write_u16(mm, addr);
                 self.cycles += 16;
                 pc = 0x10;
             },
             0xd8 => {
                 trace!("ret c");
                 if self.carry() {
-                    let addr = self.read_return_addr(mm);
+                    let addr = self.stack_read_u16(mm);
                     self.cycles += 20;
-                    pc = addr as usize;
+                    pc = addr;
                 } else {
                     self.cycles += 8;
                     pc += 1;
@@ -1938,7 +1948,7 @@ impl Cpu {
                 trace!("jp c, ${:04x}", val);
                 if self.carry() {
                     self.cycles += 16;
-                    pc = val as usize;
+                    pc = val;
                 } else {
                     self.cycles += 12;
                     pc += 3;
@@ -1949,16 +1959,16 @@ impl Cpu {
                 trace!("call c, ${:04x}", val);
                 if self.carry() {
                     let addr = self.pc + 3;
-                    self.write_return_addr(mm, addr);
+                    self.stack_write_u16(mm, addr);
                     self.cycles += 24;
-                    pc = val as usize;
+                    pc = val;
                 } else {
                     self.cycles += 12;
                     pc += 3;
                 }
             },
             0xde => {
-                let val = mm.rom[pc + 1];
+                let val = mm.read(pc + 1);
                 trace!("sbc ${:02x}", val);
                 self.sbc(val);
                 self.cycles += 8;
@@ -1966,13 +1976,13 @@ impl Cpu {
             },
             0xdf => {
                 trace!("rst 18");
-                let addr = self.pc + 3;
-                self.write_return_addr(mm, addr);
+                let addr = self.pc + 1;
+                self.stack_write_u16(mm, addr);
                 self.cycles += 16;
                 pc = 0x18;
             },
             0xe0 => {
-                let val = mm.rom[pc + 1];
+                let val = mm.read(pc + 1);
                 trace!("ld ($ff00+{:02x}), a", val);
                 let addr = 0xff00 + val as u16;
                 mm.write(addr, self.a);
@@ -1980,7 +1990,9 @@ impl Cpu {
                 pc += 2;
             },
             0xe1 => {
-                panic!("pop hl");
+                trace!("pop hl");
+                let val = self.stack_read_u16(mm);
+                self.set_hl(val);
                 self.cycles += 12;
                 pc += 1;
             },
@@ -1992,12 +2004,14 @@ impl Cpu {
                 pc += 1;
             },
             0xe5 => {
-                panic!("push hl");
+                trace!("push hl");
+                let val = self.hl();
+                self.stack_write_u16(mm, val);
                 self.cycles += 16;
                 pc += 1;
             },
             0xe6 => {
-                let val = mm.rom[pc + 1];
+                let val = mm.read(pc + 1);
                 trace!("and ${:02x}", val);
                 self.and(val);
                 self.cycles += 8;
@@ -2005,31 +2019,33 @@ impl Cpu {
             },
             0xe7 => {
                 trace!("rst $20");
-                let addr = self.pc + 3;
-                self.write_return_addr(mm, addr);
+                let addr = self.pc + 1;
+                self.stack_write_u16(mm, addr);
                 self.cycles += 16;
                 pc = 0x20;
             },
             0xe8 => {
-                let val = mm.rom[pc + 1];
+                let val = mm.read(pc + 1);
                 trace!("add sp, ${:02x}", val);
                 self.sp += val as u16;
                 self.cycles += 16;
                 pc += 2;
             },
             0xe9 => {
-                panic!("jp (hl)");
+                trace!("jp hl");
                 self.cycles += 4;
-                pc += 1;
+                pc = self.hl();
             },
             0xea => {
                 let val = self.read_u16(mm, pc + 1);
                 trace!("ld (${:04x}), a", val);
+                let a = self.a;
+                mm.write(val, a);
                 self.cycles += 16;
                 pc += 3;
             },
             0xee => {
-                let val = mm.rom[pc + 1];
+                let val = mm.read(pc + 1);
                 trace!("xor ${:02x}", val);
                 self.xor(val);
                 self.cycles += 8;
@@ -2037,13 +2053,13 @@ impl Cpu {
             },
             0xef => {
                 trace!("rst $28");
-                let addr = self.pc + 3;
-                self.write_return_addr(mm, addr);
+                let addr = self.pc + 1;
+                self.stack_write_u16(mm, addr);
                 self.cycles += 16;
                 pc = 0x28;
             },
             0xf0 => {
-                let val = mm.rom[pc + 1];
+                let val = mm.read(pc + 1);
                 trace!("ld a, ($ff00+{:02x})", val);
                 let addr = 0xff00 + val as u16;
                 self.a = mm.read(addr);
@@ -2051,7 +2067,9 @@ impl Cpu {
                 pc += 2;
             },
             0xf1 => {
-                panic!("pop af");
+                trace!("pop af");
+                let val = self.stack_read_u16(mm);
+                self.set_af(val);
                 self.cycles += 12;
                 pc += 1;
             },
@@ -2069,12 +2087,14 @@ impl Cpu {
                 pc += 1;
             },
             0xf5 => {
-                panic!("push af");
+                trace!("push af");
+                let val = self.af();
+                self.stack_write_u16(mm, val);
                 self.cycles += 16;
                 pc += 1;
             },
             0xf6 => {
-                let val = mm.rom[pc + 1];
+                let val = mm.read(pc + 1);
                 trace!("or ${:02x}", val);
                 self.or(val);
                 self.cycles += 8;
@@ -2082,13 +2102,13 @@ impl Cpu {
             },
             0xf7 => {
                 trace!("rst $30");
-                let addr = self.pc + 3;
-                self.write_return_addr(mm, addr);
+                let addr = self.pc + 1;
+                self.stack_write_u16(mm, addr);
                 self.cycles += 16;
                 pc = 0x30;
             },
             0xf8 => {
-                let val = mm.rom[pc + 1];
+                let val = mm.read(pc + 1);
                 panic!("ld hl, sp+${:02x}", val);
                 self.cycles += 12;
                 pc += 2;
@@ -2111,7 +2131,7 @@ impl Cpu {
                 pc += 1;
             },
             0xfe => {
-                let val = mm.rom[pc + 1];
+                let val = mm.read(pc + 1);
                 trace!("cp ${:02x}", val);
                 self.cp(val);
                 self.cycles += 8;
@@ -2119,14 +2139,14 @@ impl Cpu {
             },
             0xff => {
                 trace!("rst $38");
-                let addr = self.pc + 3;
-                self.write_return_addr(mm, addr);
+                let addr = self.pc + 1;
+                self.stack_write_u16(mm, addr);
                 self.cycles += 16;
                 pc = 0x38;
             },
-            _ => panic!("unknown instruction {:02x} @ pc={:04x}", mm.rom[pc], pc),
+            _ => panic!("unknown instruction {:02x} @ pc={:04x}", mm.read(pc), pc),
         }
-        self.pc = pc as u16;
+        self.pc = pc;
         return self.cycles;
     }
 }
@@ -2177,11 +2197,11 @@ fn test_cpu() {
     assert_eq!(cpu.read_u16(&mut mm, 0), 0x0100);
     assert_eq!(cpu.read_u16(&mut mm, 2), 0x4523);
 
-    cpu.write_return_addr(&mut mm, 0x1234);
+    cpu.stack_write_u16(&mut mm, 0x1234);
     assert_eq!(cpu.sp, 0xfffc);
     assert_eq!(mm.read(cpu.sp), 0x34);
     assert_eq!(mm.read(cpu.sp + 1), 0x12);
-    assert_eq!(cpu.read_return_addr(&mut mm), 0x1234);
+    assert_eq!(cpu.stack_read_u16(&mut mm), 0x1234);
 
     assert_eq!(cpu.rlc(23), 2*23);
     assert_eq!(cpu.rlc(46), 2*46);

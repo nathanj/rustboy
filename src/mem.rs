@@ -58,14 +58,14 @@ impl MemoryMap {
             // rom bank 0
             0 ... 0x3fff => {
                 if write {
-                    panic!("bad write at {:04x}", addr);
+                    trace!("bad write at {:04x}", addr);
                 }
                 self.rom[addr as usize]
             },
             // rom bank n
             0x4000 ... 0x7fff => {
                 if write {
-                    panic!("bad write at {:04x}", addr);
+                    trace!("bad write at {:04x}", addr);
                 }
                 self.rom[addr as usize]
             },
@@ -117,6 +117,15 @@ impl MemoryMap {
                 // TODO
                 panic!("handle_addr() bad addr {:04x}", addr);
             }
+        }
+    }
+
+    pub fn dump_hram(&self) {
+        for x in 0..0x10 {
+            trace!("{:02x}: {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x}",
+                   0xff80 + x * 8,
+                   self.hram[x*8+0], self.hram[x*8+1], self.hram[x*8+2], self.hram[x*8+3],
+                   self.hram[x*8+4], self.hram[x*8+5], self.hram[x*8+6], self.hram[x*8+7]);
         }
     }
 
