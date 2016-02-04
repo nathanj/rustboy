@@ -21,9 +21,24 @@ pub struct MemoryMap {
 }
 
 impl MemoryMap {
+    fn perform_dma(&mut self, val: u8) {
+        trace!("performing dma");
+        for i in 0..0xa0 {
+            let val = self.read(val as u16 * 0x100);
+            self.oam[i] = val;
+        }
+    }
+
     fn handle_ioport(&mut self, addr: u16, write: bool, val: u8) -> u8 {
         match addr {
-            0xff00 => { if write { self.joypad.borrow_mut().flags = val; } self.joypad.borrow().flags }
+            0xff00 => {
+                if write {
+                    let mut joypad = self.joypad.borrow_mut();
+                    joypad.flags = val;
+                    joypad.set_flags();
+                }
+                self.joypad.borrow().flags
+            }
             0xff01 => { 0 } // serial_transfer_data
             0xff02 => { 0 } // serial_transfer_control
             0xff04 => { if write { self.timer.borrow_mut().div = val; } self.timer.borrow().div }
@@ -36,7 +51,7 @@ impl MemoryMap {
             0xff43 => { if write { self.lcd.borrow_mut().scx = val; } self.lcd.borrow().scx }
             0xff44 => { if write { self.lcd.borrow_mut().ly = val; } self.lcd.borrow().ly }
             0xff45 => { if write { self.lcd.borrow_mut().lyc = val; } self.lcd.borrow().lyc }
-            0xff46 => { panic!("dma");if write { self.lcd.borrow_mut().dma = val; } self.lcd.borrow().dma }
+            0xff46 => { self.perform_dma(val); 0 }
             0xff47 => { if write { self.lcd.borrow_mut().bgp = val; } self.lcd.borrow().bgp }
             0xff48 => { if write { self.lcd.borrow_mut().obp0 = val; } self.lcd.borrow().obp0 }
             0xff49 => { if write { self.lcd.borrow_mut().obp1 = val; } self.lcd.borrow().obp1 }
@@ -143,5 +158,18 @@ impl MemoryMap {
 
     pub fn ei(&mut self) {
         self.interrupt_master_enable = true;
+    }
+
+    pub fn interrupt_triggered(&mut self, interrupt: u8) -> bool {
+        if !self.interrupt_master_enable {
+            return false;
+        }
+
+        let triggered = self.interrupt_enable & interrupt > 0 && self.interrupt_flag & interrupt > 0;
+        if triggered {
+            self.interrupt_master_enable = false;
+            self.interrupt_flag &= !interrupt;
+        }
+        return triggered;
     }
 }

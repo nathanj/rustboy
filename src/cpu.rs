@@ -8,6 +8,7 @@ use mem;
 use lcd;
 use timer;
 use joypad;
+use interrupt;
 
 pub struct Cpu {
     a: u8,
@@ -2133,9 +2134,11 @@ impl Cpu {
                 }
             },
             0xd9 => {
-                panic!("reti");
+                trace!("reti");
+                mm.interrupt_master_enable = true;
+                let addr = self.stack_read_u16(mm);
                 self.cycles += 16;
-                pc += 1;
+                pc = addr;
             },
             0xda => {
                 let val = self.read_u16(mm, pc + 1);
@@ -2342,6 +2345,33 @@ impl Cpu {
             },
             _ => panic!("unknown instruction {:02x} @ pc={:04x}", mm.read(pc), pc),
         }
+
+        if mm.interrupt_triggered(interrupt::INTERRUPT_VBLANK) {
+            trace!("interrupt vblank");
+            self.stack_write_u16(mm, pc);
+            pc = 0x40;
+        }
+        if mm.interrupt_triggered(interrupt::INTERRUPT_LCD_STAT) {
+            panic!("interrupt lcd stat");
+            self.stack_write_u16(mm, pc);
+            pc = 0x48;
+        }
+        if mm.interrupt_triggered(interrupt::INTERRUPT_TIMER) {
+            panic!("interrupt timer");
+            self.stack_write_u16(mm, pc);
+            pc = 0x50;
+        }
+        if mm.interrupt_triggered(interrupt::INTERRUPT_SERIAL) {
+            panic!("interrupt serial");
+            self.stack_write_u16(mm, pc);
+            pc = 0x58;
+        }
+        if mm.interrupt_triggered(interrupt::INTERRUPT_JOYPAD) {
+            panic!("interrupt joypad");
+            self.stack_write_u16(mm, pc);
+            pc = 0x60;
+        }
+
         self.pc = pc;
         return self.cycles;
     }

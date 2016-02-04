@@ -5,6 +5,14 @@ use interrupt;
 
 pub struct Joypad {
     pub flags : u8,
+    up : bool,
+    down : bool,
+    left : bool,
+    right : bool,
+    b : bool,
+    a : bool,
+    select : bool,
+    start : bool,
 }
 
 const JOYPAD_SELECT_BUTTON_KEYS    : u8 = 1<<5;
@@ -23,32 +31,56 @@ impl Joypad {
     pub fn new() -> Joypad {
         Joypad {
             flags: 0xff,
+            up : false,
+            down : false,
+            left : false,
+            right : false,
+            b : false,
+            a : false,
+            select : false,
+            start : false,
+        }
+    }
+
+    pub fn set_flags(&mut self) {
+        self.flags |= 0x0f;
+        if (self.flags & JOYPAD_SELECT_DIRECTION_KEYS) == 0 {
+            if self.up { self.flags &= !JOYPAD_INPUT_UP; }
+            if self.down { self.flags &= !JOYPAD_INPUT_DOWN; }
+            if self.left { self.flags &= !JOYPAD_INPUT_LEFT; }
+            if self.right { self.flags &= !JOYPAD_INPUT_RIGHT; }
+        }
+        if (self.flags & JOYPAD_SELECT_BUTTON_KEYS) == 0 {
+            if self.b { self.flags &= !JOYPAD_INPUT_BUTTON_B; }
+            if self.a { self.flags &= !JOYPAD_INPUT_BUTTON_A; }
+            if self.select { self.flags &= !JOYPAD_INPUT_SELECT; }
+            if self.start { self.flags &= !JOYPAD_INPUT_START }
         }
     }
 
     pub fn handle_input(&mut self, mm: &mut mem::MemoryMap, keycode: Keycode, pressed: bool) {
-        self.flags |= 0x0f;
-
         println!("keycode={} pressed={}", keycode, pressed);
 
         if (self.flags & JOYPAD_SELECT_DIRECTION_KEYS) == 0 {
             match keycode {
-                Keycode::Up => { self.flags &= !JOYPAD_INPUT_UP }
-                Keycode::Down => { self.flags &= !JOYPAD_INPUT_DOWN }
-                Keycode::Left => { self.flags &= !JOYPAD_INPUT_LEFT }
-                Keycode::Right => { self.flags &= !JOYPAD_INPUT_RIGHT }
+                Keycode::Up => { self.up = pressed; }
+                Keycode::Down => { self.down = pressed; }
+                Keycode::Left => { self.left = pressed; }
+                Keycode::Right => { self.right = pressed; }
                 _ => {}
             }
         }
         if (self.flags & JOYPAD_SELECT_BUTTON_KEYS) == 0 {
             match keycode {
-                Keycode::Z => { self.flags &= !JOYPAD_INPUT_BUTTON_B }
-                Keycode::X => { self.flags &= !JOYPAD_INPUT_BUTTON_A }
-                Keycode::A => { self.flags &= !JOYPAD_INPUT_SELECT }
-                Keycode::S => { self.flags &= !JOYPAD_INPUT_START }
+                Keycode::Z => { self.b = pressed; }
+                Keycode::X => { self.a = pressed; }
+                Keycode::A => { self.select = pressed; }
+                Keycode::S => { self.start = pressed; }
                 _ => {}
             }
         }
+
+        self.set_flags();
 
         if mm.interrupt_master_enable {
             mm.interrupt_flag |= interrupt::INTERRUPT_JOYPAD;
