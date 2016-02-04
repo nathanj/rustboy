@@ -60,10 +60,6 @@ fn main() {
     let mut texture = renderer.create_texture_streaming(PixelFormatEnum::RGB332, (160, 144)).unwrap();
     let mut pixels: [u8; 160*144] = [0; 160*144];
 
-    renderer.set_draw_color(Color::RGB(255, 0, 0));
-    renderer.clear();
-    renderer.present();
-
     let pitch = 160;
 
     let cpu = cpu::Cpu::new();
@@ -111,6 +107,7 @@ fn main() {
     let mut event_pump = sdl_context.event_pump().unwrap();
 
     let mut prevcycles = 0u32;
+    let mut drawcycles = 0u32;
     'running: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -130,9 +127,19 @@ fn main() {
         // The rest of the game loop goes here...
         let cycles = gb.cpu.run(&mut gb.mm);
         gb.lcd.borrow_mut().run(&mut gb.mm, cycles - prevcycles);
-        prevcycles = cycles;
-        if cycles > 1000000 {
-            break;
+
+        drawcycles += cycles - prevcycles;
+        if drawcycles > 70224 {
+            drawcycles -= 70224;
+            gb.lcd.borrow().draw(
+                &mut gb.mm,
+                &mut pixels);
+            texture.update(None, &pixels, pitch).unwrap();
+            renderer.copy(&texture, None, None);
+            renderer.present();
+            //break 'running;
         }
+
+        prevcycles = cycles;
     }
 }

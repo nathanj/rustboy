@@ -52,7 +52,7 @@ impl Timer {
         self.last_tick += cycles;
         if self.last_tick >= cycles_per_tick {
             self.last_tick -= cycles_per_tick;
-            self.tima.wrapping_add(1);
+            self.tima = self.tima.wrapping_add(1);
 
             // handle overflow
             if self.tima == 0 {
@@ -67,7 +67,7 @@ impl Timer {
         self.last_div_tick += cycles;
         if self.last_div_tick >= 256 {
             self.last_div_tick -= 256;
-            self.div.wrapping_add(1);
+            self.div = self.div.wrapping_add(1);
         }
     }
 }

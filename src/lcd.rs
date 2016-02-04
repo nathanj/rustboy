@@ -40,6 +40,11 @@ const LCD_STATUS_MODE                     : u8 = 1<<1 | 1<<0; // (Mode 0-3) (Rea
                                                               //    2: During Searching OAM-RAM
                                                               //    3: During Transfering Data to LCD Driver
 
+const OAM_OBJ_TO_BG_PRIORITY : u8 = 1<<7;
+const OAM_Y_FLIP             : u8 = 1<<6;
+const OAM_X_FLIP             : u8 = 1<<5;
+const OAM_PALETTE_NUMBER     : u8 = 1<<4;
+
 impl fmt::Debug for Lcd {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Lcd {{ \
@@ -62,6 +67,116 @@ impl Lcd {
 
     fn interrupt_enabled(&self, int: u8, mm: &mem::MemoryMap) -> bool {
         self.stat & int > 0 && mm.interrupt_master_enable
+    }
+
+    fn put_pixel(&self, pixels: &mut [u8; 160*144], x: usize, y: usize,
+                 color: u8, oam: bool) {
+        let c = 0u8;
+        if color == 0 && oam {
+            // for sprites color 0 is transparent
+            return;
+        }
+        pixels[y * 160 + x] = match color {
+            0 => { 0b111_111_11 }
+            1 => { 0b100_100_10 }
+            2 => { 0b010_010_01 }
+            3 => { 0b000_000_00 }
+            _ => { panic!("bad color {}", color); }
+        };
+    }
+
+    fn draw_tile(&self,
+                 mm: &mut mem::MemoryMap,
+                 pixels: &mut [u8; 160*144], x: usize, y: usize,
+                 tile_start_addr: u16,
+                 palette: [u8; 4], oam_flags: u8, oam: bool) {
+        for j in 0..8 {
+            let h = mm.read(j*2 + tile_start_addr); // XXX
+            let l = mm.read(j*2 + tile_start_addr + 1);
+            for k in 0..8 {
+                let p = (((h & (1<<k)) >> k) << 1) | ((l & (1<<k)) >> k);
+                let xpos = if oam_flags & OAM_X_FLIP > 0 { x + k as usize } else { x + 7 - k as usize };
+                let ypos = if oam_flags & OAM_Y_FLIP > 0 { y + 7 - j as usize } else { y + j as usize };
+                self.put_pixel(pixels, xpos, ypos, palette[p as usize], oam);
+            }
+        }
+    }
+
+    pub fn draw_tiles(&self, mm: &mut mem::MemoryMap, pixels: &mut [u8; 160*144]) {
+        let palette : [u8; 4] = [
+            (self.obp0 & 0x03),
+            (self.obp0 & 0x0c) >> 2,
+            (self.obp0 & 0x30) >> 4,
+            (self.obp0 & 0xc0) >> 6,
+            ];
+
+        let mut tile_start_addr = 0x8000;
+        for j in 0..12 {
+            for i in 0..16 {
+                self.draw_tile(mm, pixels, i * 8, j * 8, tile_start_addr, palette, 0, true);
+                tile_start_addr += 16;
+            }
+        }
+    }
+
+    fn get_tile_map_addr(&self) -> u16 {
+        if self.ctl & LCD_CTL_BG_TILE_MAP_DISPLAY_SELECT > 0 {
+            0x9c00
+        } else {
+            0x9800
+        }
+    }
+
+    fn get_tile_start_addr(&self, tile: u8) -> u16 {
+        if self.ctl & LCD_CTL_BG_WINDOW_TILE_DATA_SELECT > 0 {
+            0x8000 + tile as u16 * 16
+        } else {
+            0x9000u16.wrapping_add((tile as i8 * 16) as u16)
+        }
+    }
+
+    fn draw_bg(&self, mm: &mut mem::MemoryMap, pixels: &mut [u8; 160*144]) {
+
+        let palette : [u8; 4] = [
+            self.bgp & 0x03,
+            (self.bgp & 0x0c) >> 2,
+            (self.bgp & 0x30) >> 4,
+            (self.bgp & 0xc0) >> 6,
+            ];
+
+        if self.ctl & LCD_CTL_BG_DISPLAY == 0 {
+            return;
+        }
+
+        let tile_map_addr = self.get_tile_map_addr();
+
+        for j in 0..18 {
+            for i in 0..20 {
+                let tile_pos_y : u16 = ((j + self.scy / 8) % 32) as u16;
+                let tile_pos_x : u16 = ((i + self.scx / 8) % 32) as u16;
+                let tile = mm.read(tile_map_addr + tile_pos_y * 32 + tile_pos_x);
+                let tile_start_addr = self.get_tile_start_addr(tile);
+                let x = (i * 8 - self.scx % 8) as usize;
+                let y = (j * 8 - self.scy % 8) as usize;
+                self.draw_tile(mm, pixels, x, y, tile_start_addr, palette, 0, false);
+            }
+        }
+    }
+
+    fn draw_window(&self, pixels: &mut [u8; 160*144], vram: &[u8; 0x100]) {
+    }
+
+    fn draw_oam(&self, pixels: &mut [u8; 160*144], oam: &[u8; 0x100], vram: &[u8; 0x100]) {
+    }
+
+    pub fn draw(&self, mm: &mut mem::MemoryMap, pixels: &mut [u8; 160*144]) {
+        if self.ctl & LCD_CTL_ENABLE == 0 {
+            return;
+        }
+
+        self.draw_bg(mm, pixels);
+        //self.lcd_draw_window(pixels, vram);
+        //self.lcd_draw_oam(pixels, oam, vram);
     }
 
     pub fn run(&mut self, mm: &mut mem::MemoryMap, cycles: u32) {

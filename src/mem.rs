@@ -36,7 +36,7 @@ impl MemoryMap {
             0xff43 => { if write { self.lcd.borrow_mut().scx = val; } self.lcd.borrow().scx }
             0xff44 => { if write { self.lcd.borrow_mut().ly = val; } self.lcd.borrow().ly }
             0xff45 => { if write { self.lcd.borrow_mut().lyc = val; } self.lcd.borrow().lyc }
-            0xff46 => { if write { self.lcd.borrow_mut().dma = val; } self.lcd.borrow().dma }
+            0xff46 => { panic!("dma");if write { self.lcd.borrow_mut().dma = val; } self.lcd.borrow().dma }
             0xff47 => { if write { self.lcd.borrow_mut().bgp = val; } self.lcd.borrow().bgp }
             0xff48 => { if write { self.lcd.borrow_mut().obp0 = val; } self.lcd.borrow().obp0 }
             0xff49 => { if write { self.lcd.borrow_mut().obp1 = val; } self.lcd.borrow().obp1 }

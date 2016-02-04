@@ -25,9 +25,9 @@ pub struct Cpu {
 
 impl fmt::Debug for Cpu {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Cpu {{ a:{:02x} f:{:02x} b:{:02x} c:{:02x} d:{:02x} \
-               e:{:02x} h:{:02x} l:{:02x} pc:{:06x} sp:{:06x} cycles:{} }}",
-               self.a, self.f, self.b, self.c, self.d, self.e, self.h, self.l,
+        write!(f, "Cpu {{ af:{:04x} bc:{:04x} de:{:04x} \
+               hl:{:04x} pc:{:06x} sp:{:06x} cycles:{} }}",
+               self.af(), self.bc(), self.de(), self.hl(),
                self.pc, self.sp, self.cycles)
     }
 }
@@ -2313,8 +2313,10 @@ impl Cpu {
                 pc += 1;
             },
             0xfa => {
-                let val = self.read_u16(mm, pc + 1);
-                panic!("ld a, (${:04x})", val);
+                let addr = self.read_u16(mm, pc + 1);
+                trace!("ld a, (${:04x})", addr);
+                let val = mm.read(addr);
+                self.a = val;
                 self.cycles += 16;
                 pc += 3;
             },
