@@ -27,7 +27,7 @@ pub struct Cpu {
 impl fmt::Debug for Cpu {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Cpu {{ af:{:04x} bc:{:04x} de:{:04x} \
-               hl:{:04x} pc:{:06x} sp:{:06x} cycles:{} }}",
+               hl:{:04x} pc:{:4x} sp:{:4x} cycles:{} }}",
                self.af(), self.bc(), self.de(), self.hl(),
                self.pc, self.sp, self.cycles)
     }
@@ -610,9 +610,6 @@ impl Cpu {
     pub fn run(&mut self, mm: &mut mem::MemoryMap) -> u32 {
         let mut pc = self.pc;
         trace!("{:?}", self);
-        if pc == 0x28 {
-            mm.dump_hram();
-        }
         match mm.read(pc) {
             0x00 => {
                 trace!("nop");
@@ -730,7 +727,7 @@ impl Cpu {
                 pc += 1;
             },
             0x10 => {
-                trace!("stop");
+                panic!("stop");
                 // TODO
                 self.cycles += 4;
                 pc += 2;
@@ -1025,7 +1022,7 @@ impl Cpu {
                 trace!("ld (hl), ${:02x}", val);
                 mm.write(self.hl(), val);
                 self.cycles += 12;
-                pc += 1;
+                pc += 2;
             },
             0x37 => {
                 panic!("scf");

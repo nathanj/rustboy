@@ -24,8 +24,9 @@ impl MemoryMap {
     fn perform_dma(&mut self, val: u8) {
         trace!("performing dma");
         for i in 0..0xa0 {
-            let val = self.read(val as u16 * 0x100);
-            self.oam[i] = val;
+            let val = self.read(val as u16 * 0x100 + i);
+            self.oam[i as usize] = val;
+            trace!("writing oam {:04x} = {:02x}", 0xfe00 + i, val);
         }
     }
 
@@ -94,6 +95,9 @@ impl MemoryMap {
             // wram
             0xc000 ... 0xe000 => {
                 if write {
+                    if addr < 0xc030 {
+                        trace!("writing {:04x} = {:02x}", addr, val);
+                    }
                     self.wram[addr as usize - 0xc000] = val;
                 }
                 self.wram[addr as usize - 0xc000]
@@ -101,6 +105,7 @@ impl MemoryMap {
             // oam
             0xfe00 ... 0xfe9f => {
                 if write {
+                    trace!("writing oam {:04x} = {:02x}", addr, val);
                     self.oam[addr as usize - 0xfe00] = val;
                 }
                 self.oam[addr as usize - 0xfe00]
@@ -132,6 +137,30 @@ impl MemoryMap {
                 // TODO
                 panic!("handle_addr() bad addr {:04x}", addr);
             }
+        }
+    }
+
+    pub fn dump(&mut self, start: u16, len: u16) {
+        for x in 0..len/8 {
+            println!("{:02x}: {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x}",
+                     start + x * 8,
+                     self.read(start + x * 8 + 0),
+                     self.read(start + x * 8 + 1),
+                     self.read(start + x * 8 + 2),
+                     self.read(start + x * 8 + 3),
+                     self.read(start + x * 8 + 4),
+                     self.read(start + x * 8 + 5),
+                     self.read(start + x * 8 + 6),
+                     self.read(start + x * 8 + 7));
+        }
+    }
+
+    pub fn dump_oam(&self) {
+        for x in 0..20 {
+            println!("{:02x}: {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x}",
+                     0xfe00 + x * 8,
+                     self.oam[x*8+0], self.oam[x*8+1], self.oam[x*8+2], self.oam[x*8+3],
+                     self.oam[x*8+4], self.oam[x*8+5], self.oam[x*8+6], self.oam[x*8+7]);
         }
     }
 

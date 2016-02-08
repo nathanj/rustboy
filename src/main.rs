@@ -5,6 +5,7 @@
 #[macro_use] extern crate log;
 extern crate env_logger;
 extern crate sdl2;
+extern crate time;
 
 use std::io::prelude::*;
 use std::fs::File;
@@ -12,6 +13,8 @@ use std::env;
 use std::fmt;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::thread;
+use time::Duration;
 
 use sdl2::pixels::Color;
 use sdl2::pixels::PixelFormatEnum;
@@ -49,7 +52,7 @@ fn main() {
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
 
-    let window = video_subsystem.window("rust-sdl2 demo: Video", 160*3, 144*3)
+    let window = video_subsystem.window("rust-sdl2 demo: Video", 160*1, 144*1)
         .position_centered()
         .opengl()
         .build()
@@ -86,21 +89,7 @@ fn main() {
         joypad: joypad.clone(),
     };
 
-    pixels[10100] = 10;
-    pixels[10101] = 20;
-    pixels[10102] = 30;
-    pixels[10103] = 40;
-    pixels[10104] = 50;
-    pixels[10105] = 60;
-    pixels[10106] = 70;
-    pixels[10107] = 80;
-    pixels[10108] = 90;
-    pixels[10109] = 100;
-    pixels[10110] = 110;
-    pixels[10111] = 120;
-
     texture.update(None, &pixels, pitch).unwrap();
-
     renderer.copy(&texture, None, None);
     renderer.present();
 
@@ -108,20 +97,10 @@ fn main() {
 
     let mut prevcycles = 0u32;
     let mut drawcycles = 0u32;
+    let mut start = time::now();
     'running: loop {
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-                    break 'running
-                },
-                Event::KeyDown { keycode: Some(keycode), .. } => {
-                    joypad.borrow_mut().handle_input(&mut gb.mm, keycode, true);
-                }
-                Event::KeyUp { keycode: Some(keycode), .. } => {
-                    joypad.borrow_mut().handle_input(&mut gb.mm, keycode, false);
-                }
-                _ => {}
-            }
+        if prevcycles % 1000000 < 10 {
+            println!("cycles={}", prevcycles);
         }
 
         // The rest of the game loop goes here...
@@ -131,12 +110,34 @@ fn main() {
         drawcycles += cycles - prevcycles;
         if drawcycles > 70224 {
             drawcycles -= 70224;
-            gb.lcd.borrow().draw(
-                &mut gb.mm,
-                &mut pixels);
+
+            for event in event_pump.poll_iter() {
+                match event {
+                    Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                        break 'running
+                    },
+                    Event::KeyDown { keycode: Some(keycode), .. } => {
+                        joypad.borrow_mut().handle_input(&mut gb.mm, keycode, true);
+                    }
+                    Event::KeyUp { keycode: Some(keycode), .. } => {
+                        joypad.borrow_mut().handle_input(&mut gb.mm, keycode, false);
+                    }
+                    _ => {}
+                }
+            }
+
+            gb.lcd.borrow().draw(&mut gb.mm, &mut pixels);
             texture.update(None, &pixels, pitch).unwrap();
             renderer.copy(&texture, None, None);
             renderer.present();
+
+            let end = time::now();
+            let delta = end - start;
+            start = end;
+            //println!("ms={}", delta.num_milliseconds());
+
+            //thread::sleep_ms(20 - delta.num_milliseconds() as u32);
+
             //break 'running;
         }
 

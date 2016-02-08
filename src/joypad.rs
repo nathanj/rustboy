@@ -80,6 +80,11 @@ impl Joypad {
             }
         }
 
+        match keycode {
+            Keycode::L => { mm.dump(0xc000, 8*32); }
+            _ => {}
+        }
+
         self.set_flags();
 
         if mm.interrupt_master_enable {

@@ -166,7 +166,38 @@ impl Lcd {
     fn draw_window(&self, pixels: &mut [u8; 160*144], vram: &[u8; 0x100]) {
     }
 
-    fn draw_oam(&self, pixels: &mut [u8; 160*144], oam: &[u8; 0x100], vram: &[u8; 0x100]) {
+    fn draw_oam(&self, mm: &mut mem::MemoryMap, pixels: &mut [u8; 160*144]) {
+        for i in 0..40 {
+            let y     = mm.read(0xfe00 + i*4 + 0);
+            let x     = mm.read(0xfe00 + i*4 + 1);
+            let tile  = mm.read(0xfe00 + i*4 + 2);
+            let flags = mm.read(0xfe00 + i*4 + 3);
+
+            if y > 0 {
+                println!("i={} y={} x={} tile={} flags={:02x}", i, y, x, tile, flags);
+            }
+
+            if !(y > 0 && y < 160) {
+                continue;
+            }
+
+            let tile_start_addr = 0x8000 + tile as u16 * 16;
+
+            let obp = if flags & OAM_PALETTE_NUMBER > 0 {
+                self.obp1
+            } else {
+                self.obp0
+            };
+
+            let palette : [u8; 4] = [
+                (obp & 0x03),
+                (obp & 0x0c) >> 2,
+                (obp & 0x30) >> 4,
+                (obp & 0xc0) >> 6,
+                ];
+
+            self.draw_tile(mm, pixels, x as usize - 8, y as usize - 16, tile_start_addr, palette, flags, true);
+        }
     }
 
     pub fn draw(&self, mm: &mut mem::MemoryMap, pixels: &mut [u8; 160*144]) {
@@ -175,8 +206,8 @@ impl Lcd {
         }
 
         self.draw_bg(mm, pixels);
-        //self.lcd_draw_window(pixels, vram);
-        //self.lcd_draw_oam(pixels, oam, vram);
+        //self.draw_window(pixels, vram);
+        self.draw_oam(mm, pixels);
     }
 
     pub fn run(&mut self, mm: &mut mem::MemoryMap, cycles: u32) {
