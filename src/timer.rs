@@ -36,6 +36,13 @@ impl Timer {
     }
 
     pub fn run(&mut self, mm: &mut mem::MemoryMap, cycles: u32) {
+        // increment div (always 16384 Hz)
+        self.last_div_tick += cycles;
+        if self.last_div_tick >= 256 {
+            self.last_div_tick -= 256;
+            self.div = self.div.wrapping_add(1);
+        }
+
         if self.tac & TIMER_TAC_TIMER_STOP == 0 {
             return
         }
@@ -61,13 +68,6 @@ impl Timer {
                     mm.interrupt_flag |= interrupt::INTERRUPT_TIMER;
                 }
             }
-        }
-
-        // increment div (always 16384 Hz)
-        self.last_div_tick += cycles;
-        if self.last_div_tick >= 256 {
-            self.last_div_tick -= 256;
-            self.div = self.div.wrapping_add(1);
         }
     }
 }

@@ -106,6 +106,7 @@ fn main() {
         // The rest of the game loop goes here...
         let cycles = gb.cpu.run(&mut gb.mm);
         gb.lcd.borrow_mut().run(&mut gb.mm, cycles - prevcycles);
+        gb.timer.borrow_mut().run(&mut gb.mm, cycles - prevcycles);
 
         drawcycles += cycles - prevcycles;
         if drawcycles > 70224 {
@@ -116,6 +117,12 @@ fn main() {
                     Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
                         break 'running
                     },
+                    Event::KeyDown { keycode: Some(Keycode::D), .. } => {
+                        gb.cpu.tracing = true;
+                    }
+                    Event::KeyUp { keycode: Some(Keycode::D), .. } => {
+                        gb.cpu.tracing = false;
+                    }
                     Event::KeyDown { keycode: Some(keycode), .. } => {
                         joypad.borrow_mut().handle_input(&mut gb.mm, keycode, true);
                     }
@@ -136,7 +143,9 @@ fn main() {
             start = end;
             //println!("ms={}", delta.num_milliseconds());
 
-            //thread::sleep_ms(20 - delta.num_milliseconds() as u32);
+            //if delta.num_milliseconds() < 16 {
+            //    thread::sleep_ms(16 - delta.num_milliseconds() as u32);
+            //}
 
             //break 'running;
         }

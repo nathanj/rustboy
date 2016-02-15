@@ -113,7 +113,7 @@ impl Lcd {
         let mut tile_start_addr = 0x8000;
         for j in 0..12 {
             for i in 0..16 {
-                self.draw_tile(mm, pixels, i * 8, j * 8, tile_start_addr, palette, 0, true);
+                self.draw_tile(mm, pixels, i * 8, j * 8, tile_start_addr, palette, 0, false);
                 tile_start_addr += 16;
             }
         }
@@ -136,7 +136,6 @@ impl Lcd {
     }
 
     fn draw_bg(&self, mm: &mut mem::MemoryMap, pixels: &mut [u8; 160*144]) {
-
         let palette : [u8; 4] = [
             self.bgp & 0x03,
             (self.bgp & 0x0c) >> 2,
@@ -164,6 +163,11 @@ impl Lcd {
     }
 
     fn draw_window(&self, pixels: &mut [u8; 160*144], vram: &[u8; 0x100]) {
+        if self.ctl & LCD_CTL_WINDOW_DISPLAY_ENABLE == 0 {
+            return;
+        }
+
+        println!("should display window\n");
     }
 
     fn draw_oam(&self, mm: &mut mem::MemoryMap, pixels: &mut [u8; 160*144]) {
@@ -173,9 +177,9 @@ impl Lcd {
             let tile  = mm.read(0xfe00 + i*4 + 2);
             let flags = mm.read(0xfe00 + i*4 + 3);
 
-            if y > 0 {
-                println!("i={} y={} x={} tile={} flags={:02x}", i, y, x, tile, flags);
-            }
+            //if y > 0 {
+            //    println!("i={} y={} x={} tile={} flags={:02x}", i, y, x, tile, flags);
+            //}
 
             if !(y > 0 && y < 160) {
                 continue;

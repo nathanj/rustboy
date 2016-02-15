@@ -22,11 +22,13 @@ pub struct MemoryMap {
 
 impl MemoryMap {
     fn perform_dma(&mut self, val: u8) {
-        trace!("performing dma");
+        //println!("performing dma");
         for i in 0..0xa0 {
             let val = self.read(val as u16 * 0x100 + i);
             self.oam[i as usize] = val;
-            trace!("writing oam {:04x} = {:02x}", 0xfe00 + i, val);
+            if i >= 0x15 && i <= 0x20{
+                //println!("writing oam {:04x} = {:02x}", 0xfe00 + i, val);
+            }
         }
     }
 
@@ -42,10 +44,10 @@ impl MemoryMap {
             }
             0xff01 => { 0 } // serial_transfer_data
             0xff02 => { 0 } // serial_transfer_control
-            0xff04 => { if write { self.timer.borrow_mut().div = val; } self.timer.borrow().div }
-            0xff05 => { if write { self.timer.borrow_mut().tima = val; } self.timer.borrow().tima }
-            0xff06 => { if write { self.timer.borrow_mut().tma = val; } self.timer.borrow().tma }
-            0xff07 => { if write { self.timer.borrow_mut().tac = val; } self.timer.borrow().tac }
+            0xff04 => { println!("getting timer div {}\n", self.timer.borrow().div); if write { self.timer.borrow_mut().div = val; } self.timer.borrow().div }
+            0xff05 => { println!("getting timer tima {}\n", self.timer.borrow().tima); if write { self.timer.borrow_mut().tima = val; } self.timer.borrow().tima }
+            0xff06 => { println!("getting timer tma {}\n", self.timer.borrow().tma); if write { self.timer.borrow_mut().tma = val; } self.timer.borrow().tma }
+            0xff07 => { println!("getting timer tac {}\n", self.timer.borrow().tac); if write { self.timer.borrow_mut().tac = val; } self.timer.borrow().tac }
             0xff40 => { if write { self.lcd.borrow_mut().ctl = val; } self.lcd.borrow().ctl }
             0xff41 => { if write { self.lcd.borrow_mut().stat = val; } self.lcd.borrow().stat }
             0xff42 => { if write { self.lcd.borrow_mut().scy = val; } self.lcd.borrow().scy }
@@ -93,14 +95,21 @@ impl MemoryMap {
                 self.vram[addr as usize - 0x8000]
             },
             // wram
-            0xc000 ... 0xe000 => {
+            0xc000 ... 0xdfff => {
                 if write {
-                    if addr < 0xc030 {
-                        trace!("writing {:04x} = {:02x}", addr, val);
+                    if addr == 0xc019 {
+                        println!("writing {:04x} = {:02x}", addr, val);
                     }
                     self.wram[addr as usize - 0xc000] = val;
                 }
                 self.wram[addr as usize - 0xc000]
+            },
+            // wram bank 0 echo
+            0xe000 ... 0xfdff => {
+                if write {
+                    self.wram[addr as usize - 0xe000] = val;
+                }
+                self.wram[addr as usize - 0xe000]
             },
             // oam
             0xfe00 ... 0xfe9f => {
