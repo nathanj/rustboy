@@ -39,11 +39,13 @@ impl fmt::Debug for Cpu {
 
 macro_rules! my_log {
     ($_self:ident, $fmt:expr) => {{
+        //if $_self.tracing && !($_self.pc >= 0x2ed && $_self.pc <= 0x2f0) {
         if $_self.tracing {
             println!($fmt);
         }
     }};
     ($_self:ident, $fmt:expr, $($arg:tt)*) => {{
+        //if $_self.tracing && !($_self.pc >= 0x2ed && $_self.pc <= 0x2f0) {
         if $_self.tracing {
             println!($fmt, $($arg)*);
         }
@@ -206,9 +208,9 @@ impl Cpu {
     fn cp(&mut self, val: u8) {
         let a = self.a;
         self.set_zero(a == val);
-        //self.set_subtract(false);
+        self.set_subtract(true);
         //self.set_half_carry(false);
-        //self.set_carry(false);
+        self.set_carry(val > a);
     }
 
     fn rlc(&mut self, val: u8) -> u8 {
@@ -233,8 +235,10 @@ impl Cpu {
         if self.carry() {
             newval |= 0x1;
         }
-        self.set_carry(carry != 0);
         self.set_zero(newval == 0);
+        self.set_subtract(false);
+        self.set_half_carry(false);
+        self.set_carry(carry != 0);
         return newval;
     }
 
@@ -242,8 +246,10 @@ impl Cpu {
         let carry = val & 0x80;
         let newval = val << 1;
 
-        self.set_carry(carry != 0);
         self.set_zero(newval == 0);
+        self.set_subtract(false);
+        self.set_half_carry(false);
+        self.set_carry(carry != 0);
 
         return newval;
     }
@@ -257,8 +263,10 @@ impl Cpu {
             newval |= 0x80;
         }
 
-        self.set_carry(carry != 0);
         self.set_zero(newval == 0);
+        self.set_subtract(false);
+        self.set_half_carry(false);
+        self.set_carry(carry != 0);
 
         return newval;
     }
@@ -267,8 +275,10 @@ impl Cpu {
         let carry = val & 0x1;
         let newval = val >> 1;
 
-        self.set_carry(carry != 0);
         self.set_zero(newval == 0);
+        self.set_subtract(false);
+        self.set_half_carry(false);
+        self.set_carry(carry != 0);
 
         return newval;
     }
@@ -283,6 +293,8 @@ impl Cpu {
         } else {
             self.set_carry(false);
         }
+        self.set_subtract(false);
+        self.set_half_carry(false);
         self.set_zero(newval == 0);
 
         return newval;
@@ -296,6 +308,8 @@ impl Cpu {
             newval |= 0x80;
         }
         self.set_carry(carry == 1);
+        self.set_subtract(false);
+        self.set_half_carry(false);
         self.set_zero(newval == 0);
         return newval;
     }
@@ -303,6 +317,10 @@ impl Cpu {
     fn swap(&mut self, val: u8) -> u8 {
         let top = val >> 4;
         let bottom = val & 0x0f;
+        self.set_zero(top == 0 && bottom == 0);
+        self.set_subtract(false);
+        self.set_half_carry(false);
+        self.set_carry(false);
         return bottom << 4 | top;
     }
 
@@ -316,8 +334,8 @@ impl Cpu {
 
     fn inc16(&mut self, val: u16) -> u16 {
         let newval = val.wrapping_add(1);
-        self.set_zero(newval == 0);
-        self.set_subtract(false);
+        //self.set_zero(newval == 0);
+        //self.set_subtract(false);
         return newval;
     }
 
@@ -331,8 +349,8 @@ impl Cpu {
 
     fn dec16(&mut self, val: u16) -> u16 {
         let newval = val.wrapping_sub(1);
-        self.set_zero(newval == 0);
-        self.set_subtract(true);
+        //self.set_zero(newval == 0);
+        //self.set_subtract(true);
         return newval;
     }
 
@@ -359,6 +377,8 @@ impl Cpu {
 
     fn bit(&mut self, bit: u8, reg: u8) {
         self.set_zero(reg & (1 << bit) == 0);
+        self.set_subtract(false);
+        self.set_half_carry(true);
     }
 
     fn add_hl(&mut self, val: u16) {
@@ -701,7 +721,7 @@ impl Cpu {
 
     pub fn run(&mut self, mm: &mut mem::MemoryMap) -> u32 {
         let mut pc = self.pc;
-        if self.tracing {
+        if self.tracing && !(self.pc >= 0x2ed && self.pc <= 0x2f0) {
             print!("{:?} ", self);
         }
         match mm.read(pc) {
@@ -804,8 +824,6 @@ impl Cpu {
                 let val = mm.read(pc + 1);
                 my_log!(self,"ld c, ${:02x}", val);
                 self.c = val;
-                let c = self.c;
-                self.set_zero(c == 0);
                 self.cycles += 8;
                 pc += 2;
             },
@@ -1782,7 +1800,7 @@ impl Cpu {
             },
             0xa0 => {
                 my_log!(self,"and b");
-                let val = self.a;
+                let val = self.b;
                 self.and(val);
                 self.cycles += 4;
                 pc += 1;
@@ -2431,6 +2449,9 @@ impl Cpu {
 
         if mm.interrupt_triggered(interrupt::INTERRUPT_VBLANK) {
             my_log!(self,"interrupt vblank");
+            if self.tracing {
+            mm.dump(0xc000, 0xffff - 0xc000 + 1);
+            }
             self.stack_write_u16(mm, pc);
             pc = 0x40;
         }

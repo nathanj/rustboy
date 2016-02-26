@@ -133,6 +133,14 @@ fn main() {
                 }
             }
 
+            //if cycles > 330_000_000 {
+            //    gb.cpu.tracing = true;
+            //}
+
+            //if cycles > 360_000_000 {
+            //    panic!("asdf");
+            //}
+
             gb.lcd.borrow().draw(&mut gb.mm, &mut pixels);
             texture.update(None, &pixels, pitch).unwrap();
             renderer.copy(&texture, None, None);
@@ -143,8 +151,10 @@ fn main() {
             start = end;
             //println!("ms={}", delta.num_milliseconds());
 
-            //if delta.num_milliseconds() < 16 {
-            //    thread::sleep_ms(16 - delta.num_milliseconds() as u32);
+            //if cycles > 330_000_000 {
+            //    if delta.num_milliseconds() < 16 {
+            //        thread::sleep_ms(32 - delta.num_milliseconds() as u32);
+            //    }
             //}
 
             //break 'running;

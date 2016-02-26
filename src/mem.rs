@@ -44,17 +44,17 @@ impl MemoryMap {
             }
             0xff01 => { 0 } // serial_transfer_data
             0xff02 => { 0 } // serial_transfer_control
-            0xff04 => { println!("getting timer div {}\n", self.timer.borrow().div); if write { self.timer.borrow_mut().div = val; } self.timer.borrow().div }
-            0xff05 => { println!("getting timer tima {}\n", self.timer.borrow().tima); if write { self.timer.borrow_mut().tima = val; } self.timer.borrow().tima }
-            0xff06 => { println!("getting timer tma {}\n", self.timer.borrow().tma); if write { self.timer.borrow_mut().tma = val; } self.timer.borrow().tma }
-            0xff07 => { println!("getting timer tac {}\n", self.timer.borrow().tac); if write { self.timer.borrow_mut().tac = val; } self.timer.borrow().tac }
+            0xff04 => { if write { self.timer.borrow_mut().div = val; } self.timer.borrow().div }
+            0xff05 => { if write { self.timer.borrow_mut().tima = val; } self.timer.borrow().tima }
+            0xff06 => { if write { self.timer.borrow_mut().tma = val; } self.timer.borrow().tma }
+            0xff07 => { if write { self.timer.borrow_mut().tac = val; } self.timer.borrow().tac }
             0xff40 => { if write { self.lcd.borrow_mut().ctl = val; } self.lcd.borrow().ctl }
             0xff41 => { if write { self.lcd.borrow_mut().stat = val; } self.lcd.borrow().stat }
             0xff42 => { if write { self.lcd.borrow_mut().scy = val; } self.lcd.borrow().scy }
             0xff43 => { if write { self.lcd.borrow_mut().scx = val; } self.lcd.borrow().scx }
             0xff44 => { if write { self.lcd.borrow_mut().ly = val; } self.lcd.borrow().ly }
             0xff45 => { if write { self.lcd.borrow_mut().lyc = val; } self.lcd.borrow().lyc }
-            0xff46 => { self.perform_dma(val); 0 }
+            0xff46 => { if write { self.perform_dma(val); } 0 }
             0xff47 => { if write { self.lcd.borrow_mut().bgp = val; } self.lcd.borrow().bgp }
             0xff48 => { if write { self.lcd.borrow_mut().obp0 = val; } self.lcd.borrow().obp0 }
             0xff49 => { if write { self.lcd.borrow_mut().obp1 = val; } self.lcd.borrow().obp1 }
@@ -63,15 +63,31 @@ impl MemoryMap {
             0xff0f => { if write { self.interrupt_flag = val; } self.interrupt_flag }
             0xffff => { if write { self.interrupt_enable = val; } self.interrupt_enable }
             _ => {
-                if write {
-                    self.iobuf[addr as usize - 0xff00] = val;
-                }
-                self.iobuf[addr as usize - 0xff00]
+                // if write {
+                //     self.iobuf[addr as usize - 0xff00] = val;
+                // }
+                // self.iobuf[addr as usize - 0xff00]
+                0
             }
         }
     }
 
     fn handle_addr(&mut self, addr: u16, write: bool, val: u8) -> u8 {
+        //if write && (addr == 0x9950 || addr == 0xdf71) {
+        //    println!("NJJ writing addr={:04x} val={:02x}", addr, val);
+        //}
+        //if write && (addr == 0xffe1 || addr == 0xffe2 || addr==0xcfec || addr==0xcfed || addr == 0xcfee || addr == 0xcfef) {
+        //    println!("NJJ writing addr={:04x} val={:02x}", addr, val);
+        //}
+        if write && (addr >= 0xc000 && addr < 0xc050) {
+            println!("NJJ writing addr={:04x} val={:02x}", addr, val);
+        }
+        if write && (addr == 0xff87 || addr == 0xff8b || addr == 0xff90 || addr == 0xc201 || addr == 0xc202 || addr == 0xc203 || addr == 0xffea) {
+            println!("NJJ writing addr={:04x} val={:02x}", addr, val);
+        }
+        //if write && (addr >= 0xff80 || addr == 0xc201 || addr == 0xc202 || addr == 0xcff5 || addr == 0xcff6 || addr == 0xcff7) {
+        //    println!("NJJ writing addr={:04x} val={:02x}", addr, val);
+        //}
         match addr {
             // rom bank 0
             0 ... 0x3fff => {
@@ -131,6 +147,9 @@ impl MemoryMap {
             // hram
             0xff80 ... 0xfffe => {
                 if write {
+                    if addr == 0xffe1 && val == 0 {
+                        self.dump(0x8000, 0xfff0 - 0x8000);
+                    }
                     self.hram[addr as usize - 0xff80] = val;
                 }
                 self.hram[addr as usize - 0xff80]
@@ -143,24 +162,33 @@ impl MemoryMap {
                 self.interrupt_enable
             }
             _ => {
+                0
                 // TODO
-                panic!("handle_addr() bad addr {:04x}", addr);
+                //panic!("handle_addr() bad addr {:04x}", addr);
             }
         }
     }
 
     pub fn dump(&mut self, start: u16, len: u16) {
-        for x in 0..len/8 {
-            println!("{:02x}: {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x}",
-                     start + x * 8,
-                     self.read(start + x * 8 + 0),
-                     self.read(start + x * 8 + 1),
-                     self.read(start + x * 8 + 2),
-                     self.read(start + x * 8 + 3),
-                     self.read(start + x * 8 + 4),
-                     self.read(start + x * 8 + 5),
-                     self.read(start + x * 8 + 6),
-                     self.read(start + x * 8 + 7));
+        for x in 0..len/16 {
+            println!("{:04x}: {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x}",
+                     start + x * 16,
+                     self.read(start + x * 16 + 0),
+                     self.read(start + x * 16 + 1),
+                     self.read(start + x * 16 + 2),
+                     self.read(start + x * 16 + 3),
+                     self.read(start + x * 16 + 4),
+                     self.read(start + x * 16 + 5),
+                     self.read(start + x * 16 + 6),
+                     self.read(start + x * 16 + 7),
+                     self.read(start + x * 16 + 8),
+                     self.read(start + x * 16 + 9),
+                     self.read(start + x * 16 + 10),
+                     self.read(start + x * 16 + 11),
+                     self.read(start + x * 16 + 12),
+                     self.read(start + x * 16 + 13),
+                     self.read(start + x * 16 + 14),
+                     self.read(start + x * 16 + 15));
         }
     }
 

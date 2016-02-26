@@ -69,12 +69,18 @@ impl Lcd {
         self.stat & int > 0 && mm.interrupt_master_enable
     }
 
-    fn put_pixel(&self, pixels: &mut [u8; 160*144], x: usize, y: usize,
+    fn put_pixel(&self,
+                 mm: &mut mem::MemoryMap,
+                 pixels: &mut [u8; 160*144], x: usize, y: usize,
                  color: u8, oam: bool) {
         let c = 0u8;
         if color == 0 && oam {
             // for sprites color 0 is transparent
             return;
+        }
+        if y >= 144 || x >= 160 {
+            mm.dump(0x8000, 0x4000);
+            panic!("y = {}, x = {}", y, x);
         }
         pixels[y * 160 + x] = match color {
             0 => { 0b111_111_11 }
@@ -97,7 +103,7 @@ impl Lcd {
                 let p = (((h & (1<<k)) >> k) << 1) | ((l & (1<<k)) >> k);
                 let xpos = if oam_flags & OAM_X_FLIP > 0 { x + k as usize } else { x + 7 - k as usize };
                 let ypos = if oam_flags & OAM_Y_FLIP > 0 { y + 7 - j as usize } else { y + j as usize };
-                self.put_pixel(pixels, xpos, ypos, palette[p as usize], oam);
+                self.put_pixel(mm, pixels, xpos, ypos, palette[p as usize], oam);
             }
         }
     }
@@ -177,9 +183,9 @@ impl Lcd {
             let tile  = mm.read(0xfe00 + i*4 + 2);
             let flags = mm.read(0xfe00 + i*4 + 3);
 
-            //if y > 0 {
-            //    println!("i={} y={} x={} tile={} flags={:02x}", i, y, x, tile, flags);
-            //}
+            if y > 0 {
+                println!("lcd i={} y={} x={} tile={} flags={:02x}", i, y, x, tile, flags);
+            }
 
             if !(y > 0 && y < 160) {
                 continue;
