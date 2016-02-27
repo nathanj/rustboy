@@ -21,6 +21,7 @@ use sdl2::pixels::PixelFormatEnum;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::render::Texture;
+use sdl2::audio::{AudioCallback, AudioSpecDesired};
 
 mod cpu;
 mod lcd;
@@ -28,6 +29,28 @@ mod timer;
 mod interrupt;
 mod mem;
 mod joypad;
+mod sound;
+
+struct SquareWave {
+    phase_inc: f32,
+    phase: f32,
+    volume: f32,
+}
+
+impl AudioCallback for SquareWave {
+    type Channel = f32;
+
+    fn callback(&mut self, out: &mut [f32]) {
+        // Generate a square wave
+        for x in out.iter_mut() {
+            *x = match self.phase {
+                0.0 ... 0.5 => self.volume,
+                _ => -self.volume,
+            };
+            self.phase = (self.phase + self.phase_inc) % 1.0;
+        }
+    }
+}
 
 struct Gameboy {
     cpu: cpu::Cpu,
@@ -35,6 +58,7 @@ struct Gameboy {
     lcd : Rc<RefCell<lcd::Lcd>>,
     timer : Rc<RefCell<timer::Timer>>,
     joypad : Rc<RefCell<joypad::Joypad>>,
+    sound : Rc<RefCell<sound::Sound>>,
     //vram: [u8; 0x2000],
     //eram: [u8; 0x2000],
 }
@@ -50,7 +74,28 @@ fn main() {
     println!("filename = {} size = {:?}", filename, size);
 
     let sdl_context = sdl2::init().unwrap();
+
+
+
+    let audio_subsystem = sdl_context.audio().unwrap();
+    let desired_spec = AudioSpecDesired {
+        freq: Some(44100),
+        channels: Some(1),
+        samples: None,
+    };
+
+    let device = audio_subsystem.open_playback(None, desired_spec, |spec| {
+        SquareWave {
+            phase_inc: 440.0 / spec.freq as f32,
+            phase: 0.0,
+            volume: 0.25,
+        }
+    }).unwrap();
+
+    //device.resume();
+
     let video_subsystem = sdl_context.video().unwrap();
+
 
     let window = video_subsystem.window("rust-sdl2 demo: Video", 160*1, 144*1)
         .position_centered()
@@ -73,6 +118,7 @@ fn main() {
     let lcd = Rc::new(RefCell::new(lcd::Lcd::new()));
     let timer = Rc::new(RefCell::new(timer::Timer::new()));
     let joypad = Rc::new(RefCell::new(joypad::Joypad::new()));
+    let sound = Rc::new(RefCell::new(sound::Sound::new()));
     let mm = mem::MemoryMap { rom: rom, vram: vram, wram: wram, hram: hram,
         iobuf: iobuf,
         interrupt_enable: 0, interrupt_master_enable: false, interrupt_flag: 0,
@@ -80,6 +126,7 @@ fn main() {
         lcd: lcd.clone(),
         timer: timer.clone(),
         joypad: joypad.clone(),
+        sound: sound.clone(),
     };
     let mut gb = Gameboy {
         cpu: cpu,
@@ -87,6 +134,7 @@ fn main() {
         lcd: lcd.clone(),
         timer: timer.clone(),
         joypad: joypad.clone(),
+        sound: sound.clone(),
     };
 
     texture.update(None, &pixels, pitch).unwrap();
@@ -141,6 +189,7 @@ fn main() {
             //    panic!("asdf");
             //}
 
+            gb.sound.borrow_mut().run(&mut gb.mm);
             gb.lcd.borrow().draw(&mut gb.mm, &mut pixels);
             texture.update(None, &pixels, pitch).unwrap();
             renderer.copy(&texture, None, None);

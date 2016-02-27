@@ -4,6 +4,7 @@ use std::rc::Rc;
 use lcd;
 use timer;
 use joypad;
+use sound;
 
 pub struct MemoryMap {
     pub rom: Vec<u8>,
@@ -18,6 +19,7 @@ pub struct MemoryMap {
     pub lcd : Rc<RefCell<lcd::Lcd>>,
     pub timer : Rc<RefCell<timer::Timer>>,
     pub joypad : Rc<RefCell<joypad::Joypad>>,
+    pub sound : Rc<RefCell<sound::Sound>>,
 }
 
 impl MemoryMap {
@@ -48,6 +50,31 @@ impl MemoryMap {
             0xff05 => { if write { self.timer.borrow_mut().tima = val; } self.timer.borrow().tima }
             0xff06 => { if write { self.timer.borrow_mut().tma = val; } self.timer.borrow().tma }
             0xff07 => { if write { self.timer.borrow_mut().tac = val; } self.timer.borrow().tac }
+
+            0xff10 => { if write { self.sound.borrow_mut().nr10 = val; } self.sound.borrow().nr10 }
+            0xff11 => { if write { self.sound.borrow_mut().nr11 = val; } self.sound.borrow().nr11 }
+            0xff12 => { if write { self.sound.borrow_mut().nr12 = val; } self.sound.borrow().nr12 }
+            0xff13 => { if write { self.sound.borrow_mut().nr13 = val; } self.sound.borrow().nr13 }
+            0xff14 => { if write { self.sound.borrow_mut().nr14 = val; } self.sound.borrow().nr14 }
+            0xff16 => { if write { self.sound.borrow_mut().nr21 = val; } self.sound.borrow().nr21 }
+            0xff17 => { if write { self.sound.borrow_mut().nr22 = val; } self.sound.borrow().nr22 }
+            0xff18 => { if write { self.sound.borrow_mut().nr23 = val; } self.sound.borrow().nr23 }
+            0xff19 => { if write { self.sound.borrow_mut().nr24 = val; } self.sound.borrow().nr24 }
+            0xff1a => { if write { self.sound.borrow_mut().nr30 = val; } self.sound.borrow().nr30 }
+            0xff1b => { if write { self.sound.borrow_mut().nr31 = val; } self.sound.borrow().nr31 }
+            0xff1c => { if write { self.sound.borrow_mut().nr32 = val; } self.sound.borrow().nr32 }
+            0xff1d => { if write { self.sound.borrow_mut().nr33 = val; } self.sound.borrow().nr33 }
+            0xff1e => { if write { self.sound.borrow_mut().nr34 = val; } self.sound.borrow().nr34 }
+            0xff20 => { if write { self.sound.borrow_mut().nr41 = val; } self.sound.borrow().nr41 }
+            0xff21 => { if write { self.sound.borrow_mut().nr42 = val; } self.sound.borrow().nr42 }
+            0xff22 => { if write { self.sound.borrow_mut().nr43 = val; } self.sound.borrow().nr43 }
+            0xff23 => { if write { self.sound.borrow_mut().nr44 = val; } self.sound.borrow().nr44 }
+            0xff24 => { if write { self.sound.borrow_mut().nr50 = val; } self.sound.borrow().nr50 }
+            0xff25 => { if write { self.sound.borrow_mut().nr51 = val; } self.sound.borrow().nr51 }
+            0xff26 => { if write { self.sound.borrow_mut().nr52 = val; } self.sound.borrow().nr52 }
+
+            //0xff30 ... 0xff3f => { if write { self.sound.borrow_mut().wave_ram[addr - 0xff30 as usize] = val; } self.sound.borrow().wave_ram[addr - 0xff30 as usize] }
+
             0xff40 => { if write { self.lcd.borrow_mut().ctl = val; } self.lcd.borrow().ctl }
             0xff41 => { if write { self.lcd.borrow_mut().stat = val; } self.lcd.borrow().stat }
             0xff42 => { if write { self.lcd.borrow_mut().scy = val; } self.lcd.borrow().scy }
