@@ -1,4 +1,11 @@
+use std::cell::RefCell;
 use std::fmt;
+use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::RwLock;
+
+use sdl2::audio::AudioCallback;
+
 use mem;
 use interrupt;
 
@@ -34,6 +41,49 @@ pub struct Sound {
     pub nr50 : u8, // channel control / on-off / volume (r/w)
     pub nr51 : u8, // selection of sound output terminal (r/w)
     pub nr52 : u8, // sound on/off
+}
+
+
+pub struct SoundPlayer {
+    pub x : u8,
+    pub phase : f32,
+    pub sound : Arc<RwLock<Sound>>,
+}
+
+impl AudioCallback for SoundPlayer {
+    type Channel = f32;
+
+    fn callback(&mut self, out: &mut [f32]) {
+        let s = self.sound.read().unwrap();
+
+        let freq_lo = s.nr13 as u32;
+        let freq_hi = s.nr14 as u32 & 0b111;
+        let freq = 131072 / (2048 - (freq_hi << 8 | freq_lo));
+
+        let wave_duty = s.nr11 >> 6;
+        println!("freq = {} wave_duty = {}", freq, wave_duty);
+
+
+        let phase_val = match wave_duty {
+            0b00 => 12.5,
+            0b01 => 25.0,
+            0b10 => 50.0,
+            0b11 => 75.0,
+            _ => panic!(),
+        };
+
+        // Generate a square wave
+        for x in out.iter_mut() {
+
+            *x = if self.phase >= phase_val {
+                0.7
+            } else {
+                -0.7
+            };
+
+            self.phase = (self.phase + 0.01) % 1.0;
+        }
+    }
 }
 
 impl fmt::Debug for Sound {
@@ -99,7 +149,7 @@ impl Sound {
     }
 
     pub fn run(&mut self, mm: &mut mem::MemoryMap) {
-        println!("{:?}", self);
+        //println!("{:?}", self);
     }
 
 }

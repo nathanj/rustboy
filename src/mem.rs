@@ -1,5 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::RwLock;
 
 use lcd;
 use timer;
@@ -19,7 +21,7 @@ pub struct MemoryMap {
     pub lcd : Rc<RefCell<lcd::Lcd>>,
     pub timer : Rc<RefCell<timer::Timer>>,
     pub joypad : Rc<RefCell<joypad::Joypad>>,
-    pub sound : Rc<RefCell<sound::Sound>>,
+    pub sound : Arc<RwLock<sound::Sound>>,
 }
 
 impl MemoryMap {
@@ -51,27 +53,27 @@ impl MemoryMap {
             0xff06 => { if write { self.timer.borrow_mut().tma = val; } self.timer.borrow().tma }
             0xff07 => { if write { self.timer.borrow_mut().tac = val; } self.timer.borrow().tac }
 
-            0xff10 => { if write { self.sound.borrow_mut().nr10 = val; } self.sound.borrow().nr10 }
-            0xff11 => { if write { self.sound.borrow_mut().nr11 = val; } self.sound.borrow().nr11 }
-            0xff12 => { if write { self.sound.borrow_mut().nr12 = val; } self.sound.borrow().nr12 }
-            0xff13 => { if write { self.sound.borrow_mut().nr13 = val; } self.sound.borrow().nr13 }
-            0xff14 => { if write { self.sound.borrow_mut().nr14 = val; } self.sound.borrow().nr14 }
-            0xff16 => { if write { self.sound.borrow_mut().nr21 = val; } self.sound.borrow().nr21 }
-            0xff17 => { if write { self.sound.borrow_mut().nr22 = val; } self.sound.borrow().nr22 }
-            0xff18 => { if write { self.sound.borrow_mut().nr23 = val; } self.sound.borrow().nr23 }
-            0xff19 => { if write { self.sound.borrow_mut().nr24 = val; } self.sound.borrow().nr24 }
-            0xff1a => { if write { self.sound.borrow_mut().nr30 = val; } self.sound.borrow().nr30 }
-            0xff1b => { if write { self.sound.borrow_mut().nr31 = val; } self.sound.borrow().nr31 }
-            0xff1c => { if write { self.sound.borrow_mut().nr32 = val; } self.sound.borrow().nr32 }
-            0xff1d => { if write { self.sound.borrow_mut().nr33 = val; } self.sound.borrow().nr33 }
-            0xff1e => { if write { self.sound.borrow_mut().nr34 = val; } self.sound.borrow().nr34 }
-            0xff20 => { if write { self.sound.borrow_mut().nr41 = val; } self.sound.borrow().nr41 }
-            0xff21 => { if write { self.sound.borrow_mut().nr42 = val; } self.sound.borrow().nr42 }
-            0xff22 => { if write { self.sound.borrow_mut().nr43 = val; } self.sound.borrow().nr43 }
-            0xff23 => { if write { self.sound.borrow_mut().nr44 = val; } self.sound.borrow().nr44 }
-            0xff24 => { if write { self.sound.borrow_mut().nr50 = val; } self.sound.borrow().nr50 }
-            0xff25 => { if write { self.sound.borrow_mut().nr51 = val; } self.sound.borrow().nr51 }
-            0xff26 => { if write { self.sound.borrow_mut().nr52 = val; } self.sound.borrow().nr52 }
+            0xff10 => { if write { self.sound.write().unwrap().nr10 = val; } self.sound.read().unwrap().nr10 }
+            0xff11 => { if write { self.sound.write().unwrap().nr11 = val; } self.sound.read().unwrap().nr11 }
+            0xff12 => { if write { self.sound.write().unwrap().nr12 = val; } self.sound.read().unwrap().nr12 }
+            0xff13 => { if write { self.sound.write().unwrap().nr13 = val; } self.sound.read().unwrap().nr13 }
+            0xff14 => { if write { self.sound.write().unwrap().nr14 = val; } self.sound.read().unwrap().nr14 }
+            0xff16 => { if write { self.sound.write().unwrap().nr21 = val; } self.sound.read().unwrap().nr21 }
+            0xff17 => { if write { self.sound.write().unwrap().nr22 = val; } self.sound.read().unwrap().nr22 }
+            0xff18 => { if write { self.sound.write().unwrap().nr23 = val; } self.sound.read().unwrap().nr23 }
+            0xff19 => { if write { self.sound.write().unwrap().nr24 = val; } self.sound.read().unwrap().nr24 }
+            0xff1a => { if write { self.sound.write().unwrap().nr30 = val; } self.sound.read().unwrap().nr30 }
+            0xff1b => { if write { self.sound.write().unwrap().nr31 = val; } self.sound.read().unwrap().nr31 }
+            0xff1c => { if write { self.sound.write().unwrap().nr32 = val; } self.sound.read().unwrap().nr32 }
+            0xff1d => { if write { self.sound.write().unwrap().nr33 = val; } self.sound.read().unwrap().nr33 }
+            0xff1e => { if write { self.sound.write().unwrap().nr34 = val; } self.sound.read().unwrap().nr34 }
+            0xff20 => { if write { self.sound.write().unwrap().nr41 = val; } self.sound.read().unwrap().nr41 }
+            0xff21 => { if write { self.sound.write().unwrap().nr42 = val; } self.sound.read().unwrap().nr42 }
+            0xff22 => { if write { self.sound.write().unwrap().nr43 = val; } self.sound.read().unwrap().nr43 }
+            0xff23 => { if write { self.sound.write().unwrap().nr44 = val; } self.sound.read().unwrap().nr44 }
+            0xff24 => { if write { self.sound.write().unwrap().nr50 = val; } self.sound.read().unwrap().nr50 }
+            0xff25 => { if write { self.sound.write().unwrap().nr51 = val; } self.sound.read().unwrap().nr51 }
+            0xff26 => { if write { self.sound.write().unwrap().nr52 = val; } self.sound.read().unwrap().nr52 }
 
             //0xff30 ... 0xff3f => { if write { self.sound.borrow_mut().wave_ram[addr - 0xff30 as usize] = val; } self.sound.borrow().wave_ram[addr - 0xff30 as usize] }
 
@@ -100,21 +102,6 @@ impl MemoryMap {
     }
 
     fn handle_addr(&mut self, addr: u16, write: bool, val: u8) -> u8 {
-        //if write && (addr == 0x9950 || addr == 0xdf71) {
-        //    println!("NJJ writing addr={:04x} val={:02x}", addr, val);
-        //}
-        //if write && (addr == 0xffe1 || addr == 0xffe2 || addr==0xcfec || addr==0xcfed || addr == 0xcfee || addr == 0xcfef) {
-        //    println!("NJJ writing addr={:04x} val={:02x}", addr, val);
-        //}
-        if write && (addr >= 0xc000 && addr < 0xc050) {
-            println!("NJJ writing addr={:04x} val={:02x}", addr, val);
-        }
-        if write && (addr == 0xff87 || addr == 0xff8b || addr == 0xff90 || addr == 0xc201 || addr == 0xc202 || addr == 0xc203 || addr == 0xffea) {
-            println!("NJJ writing addr={:04x} val={:02x}", addr, val);
-        }
-        //if write && (addr >= 0xff80 || addr == 0xc201 || addr == 0xc202 || addr == 0xcff5 || addr == 0xcff6 || addr == 0xcff7) {
-        //    println!("NJJ writing addr={:04x} val={:02x}", addr, val);
-        //}
         match addr {
             // rom bank 0
             0 ... 0x3fff => {

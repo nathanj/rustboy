@@ -184,7 +184,7 @@ impl Lcd {
             let flags = mm.read(0xfe00 + i*4 + 3);
 
             if y > 0 {
-                println!("lcd i={} y={} x={} tile={} flags={:02x}", i, y, x, tile, flags);
+                //println!("lcd i={} y={} x={} tile={} flags={:02x}", i, y, x, tile, flags);
             }
 
             if !(y > 0 && y < 160) {

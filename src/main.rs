@@ -13,6 +13,8 @@ use std::env;
 use std::fmt;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::RwLock;
 use std::thread;
 use time::Duration;
 
@@ -58,7 +60,7 @@ struct Gameboy {
     lcd : Rc<RefCell<lcd::Lcd>>,
     timer : Rc<RefCell<timer::Timer>>,
     joypad : Rc<RefCell<joypad::Joypad>>,
-    sound : Rc<RefCell<sound::Sound>>,
+    sound : Arc<RwLock<sound::Sound>>,
     //vram: [u8; 0x2000],
     //eram: [u8; 0x2000],
 }
@@ -84,15 +86,6 @@ fn main() {
         samples: None,
     };
 
-    let device = audio_subsystem.open_playback(None, desired_spec, |spec| {
-        SquareWave {
-            phase_inc: 440.0 / spec.freq as f32,
-            phase: 0.0,
-            volume: 0.25,
-        }
-    }).unwrap();
-
-    //device.resume();
 
     let video_subsystem = sdl_context.video().unwrap();
 
@@ -118,7 +111,7 @@ fn main() {
     let lcd = Rc::new(RefCell::new(lcd::Lcd::new()));
     let timer = Rc::new(RefCell::new(timer::Timer::new()));
     let joypad = Rc::new(RefCell::new(joypad::Joypad::new()));
-    let sound = Rc::new(RefCell::new(sound::Sound::new()));
+    let sound = Arc::new(RwLock::new(sound::Sound::new()));
     let mm = mem::MemoryMap { rom: rom, vram: vram, wram: wram, hram: hram,
         iobuf: iobuf,
         interrupt_enable: 0, interrupt_master_enable: false, interrupt_flag: 0,
@@ -142,6 +135,20 @@ fn main() {
     renderer.present();
 
     let mut event_pump = sdl_context.event_pump().unwrap();
+
+
+    let device = audio_subsystem.open_playback(None, desired_spec, |spec| {
+        println!("spec = {:?}", spec);
+        sound::SoundPlayer {
+            x: 5,
+            phase: 0.0,
+            sound: sound.clone(),
+        }
+    }).unwrap();
+
+    device.resume();
+
+
 
     let mut prevcycles = 0u32;
     let mut drawcycles = 0u32;
@@ -189,7 +196,7 @@ fn main() {
             //    panic!("asdf");
             //}
 
-            gb.sound.borrow_mut().run(&mut gb.mm);
+            gb.sound.write().unwrap().run(&mut gb.mm);
             gb.lcd.borrow().draw(&mut gb.mm, &mut pixels);
             texture.update(None, &pixels, pitch).unwrap();
             renderer.copy(&texture, None, None);
