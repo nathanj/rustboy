@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::sync::RwLock;
 
 use sdl2::audio::AudioCallback;
+use sdl2::audio::AudioSpec;
 
 use mem;
 use interrupt;
@@ -45,6 +46,7 @@ pub struct Sound {
 
 
 pub struct SoundPlayer {
+    pub spec : AudioSpec,
     pub x : u8,
     pub phase : f32,
     pub sound : Arc<RwLock<Sound>>,
@@ -56,32 +58,48 @@ impl AudioCallback for SoundPlayer {
     fn callback(&mut self, out: &mut [f32]) {
         let s = self.sound.read().unwrap();
 
+        if s.nr52 & 0x80 == 0 {
+            return;
+        }
+
         let freq_lo = s.nr13 as u32;
         let freq_hi = s.nr14 as u32 & 0b111;
         let freq = 131072 / (2048 - (freq_hi << 8 | freq_lo));
-
+        let phase_inc = freq as f32 / self.spec.freq as f32;
         let wave_duty = s.nr11 >> 6;
-        println!("freq = {} wave_duty = {}", freq, wave_duty);
 
+        if s.nr10 & 0b1110000 > 0 {
+            panic!("sweep {:?}", *s);
+        }
+        if s.nr12 & 0b111 > 0 {
+            panic!("envelope {:?}", *s);
+        }
+
+        println!("spec = {:?}", self.spec);
+        println!("s = {:?}", *s);
+        println!("freq = {} wave_duty = {} phase_inc = {} phase = {} samples = {}",
+                 freq, wave_duty, phase_inc, self.phase, self.spec.samples);
 
         let phase_val = match wave_duty {
-            0b00 => 12.5,
-            0b01 => 25.0,
-            0b10 => 50.0,
-            0b11 => 75.0,
+            0b00 => 0.125,
+            0b01 => 0.250,
+            0b10 => 0.500,
+            0b11 => 0.750,
             _ => panic!(),
         };
 
-        // Generate a square wave
+        //phase_inc = 0.00997732 as f32;
+        //phase_val = 0.500 as f32;
+
         for x in out.iter_mut() {
 
             *x = if self.phase >= phase_val {
-                0.7
+                0.25
             } else {
-                -0.7
+                -0.25
             };
 
-            self.phase = (self.phase + 0.01) % 1.0;
+            self.phase = (self.phase + phase_inc) % 1.0;
         }
     }
 }

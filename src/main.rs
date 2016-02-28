@@ -140,6 +140,7 @@ fn main() {
     let device = audio_subsystem.open_playback(None, desired_spec, |spec| {
         println!("spec = {:?}", spec);
         sound::SoundPlayer {
+            spec: spec,
             x: 5,
             phase: 0.0,
             sound: sound.clone(),
@@ -208,9 +209,9 @@ fn main() {
             //println!("ms={}", delta.num_milliseconds());
 
             //if cycles > 330_000_000 {
-            //    if delta.num_milliseconds() < 16 {
-            //        thread::sleep_ms(32 - delta.num_milliseconds() as u32);
-            //    }
+            if delta.num_milliseconds() < 16 {
+                thread::sleep_ms(16 - delta.num_milliseconds() as u32);
+            }
             //}
 
             //break 'running;

@@ -184,6 +184,7 @@ impl MemoryMap {
     }
 
     pub fn dump(&mut self, start: u16, len: u16) {
+        return;
         for x in 0..len/16 {
             println!("{:04x}: {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x}",
                      start + x * 16,
