@@ -154,13 +154,23 @@ impl Cpu {
         let a = self.a;
         self.set_zero(a == 0);
         self.set_subtract(false);
-        self.set_half_carry(pa&0xf + val&0xf > 0xf);
+        self.set_half_carry(a & 0xf < pa & 0xf);
         self.set_carry(a < pa);
     }
 
     fn adc(&mut self, val: u8) {
-        let carry = if self.carry() { 1 } else { 0 };
-        self.add(val + carry);
+        let carry : u8 = if self.carry() { 1 } else { 0 };
+        let pa = self.a;
+        self.a = self.a.wrapping_add(val).wrapping_add(carry);
+        let a = self.a;
+        self.set_zero(a == 0);
+        self.set_subtract(false);
+        self.set_half_carry((pa & 0xf) + (val & 0xf) + carry > 0xf);
+        if carry > 0 {
+            self.set_carry(a <= pa);
+        } else {
+            self.set_carry(a < pa);
+        }
     }
 
     fn sub(&mut self, val: u8) {
@@ -169,13 +179,23 @@ impl Cpu {
         let a = self.a;
         self.set_zero(a == 0);
         self.set_subtract(true);
-        // self.set_half_carry(pa&0xf + val&0xf > 0xf); // XXX
+        self.set_half_carry(pa & 0xf < a & 0xf);
         self.set_carry(a > pa);
     }
 
     fn sbc(&mut self, val: u8) {
         let carry = if self.carry() { 1 } else { 0 };
-        self.sub(val + carry);
+        let pa = self.a;
+        self.a = self.a.wrapping_sub(val).wrapping_sub(carry);
+        let a = self.a;
+        self.set_zero(a == 0);
+        self.set_subtract(true);
+        self.set_half_carry((pa & 0xf).wrapping_sub(val & 0xf).wrapping_sub(carry) > 200);
+        if carry > 0 {
+            self.set_carry(a >= pa);
+        } else {
+            self.set_carry(a > pa);
+        }
     }
 
     fn and(&mut self, val: u8) {
@@ -207,9 +227,10 @@ impl Cpu {
 
     fn cp(&mut self, val: u8) {
         let a = self.a;
+        let tmp = a.wrapping_sub(val);
         self.set_zero(a == val);
         self.set_subtract(true);
-        //self.set_half_carry(false);
+        self.set_half_carry(tmp & 0xf > a & 0xf);
         self.set_carry(val > a);
     }
 
@@ -721,7 +742,7 @@ impl Cpu {
 
     pub fn run(&mut self, mm: &mut mem::MemoryMap) -> u32 {
         let mut pc = self.pc;
-        if self.tracing && !(self.pc >= 0x2ed && self.pc <= 0x2f0) {
+        if self.tracing {
             print!("{:?} ", self);
         }
         match mm.read(pc) {

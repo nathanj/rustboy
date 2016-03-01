@@ -53,29 +53,7 @@ impl MemoryMap {
             0xff06 => { if write { self.timer.borrow_mut().tma = val; } self.timer.borrow().tma }
             0xff07 => { if write { self.timer.borrow_mut().tac = val; } self.timer.borrow().tac }
 
-            0xff10 => { if write { self.sound.write().unwrap().nr10 = val; } self.sound.read().unwrap().nr10 }
-            0xff11 => { if write { self.sound.write().unwrap().nr11 = val; } self.sound.read().unwrap().nr11 }
-            0xff12 => { if write { self.sound.write().unwrap().nr12 = val; } self.sound.read().unwrap().nr12 }
-            0xff13 => { if write { self.sound.write().unwrap().nr13 = val; } self.sound.read().unwrap().nr13 }
-            0xff14 => { if write { self.sound.write().unwrap().nr14 = val; } self.sound.read().unwrap().nr14 }
-            0xff16 => { if write { self.sound.write().unwrap().nr21 = val; } self.sound.read().unwrap().nr21 }
-            0xff17 => { if write { self.sound.write().unwrap().nr22 = val; } self.sound.read().unwrap().nr22 }
-            0xff18 => { if write { self.sound.write().unwrap().nr23 = val; } self.sound.read().unwrap().nr23 }
-            0xff19 => { if write { self.sound.write().unwrap().nr24 = val; } self.sound.read().unwrap().nr24 }
-            0xff1a => { if write { self.sound.write().unwrap().nr30 = val; } self.sound.read().unwrap().nr30 }
-            0xff1b => { if write { self.sound.write().unwrap().nr31 = val; } self.sound.read().unwrap().nr31 }
-            0xff1c => { if write { self.sound.write().unwrap().nr32 = val; } self.sound.read().unwrap().nr32 }
-            0xff1d => { if write { self.sound.write().unwrap().nr33 = val; } self.sound.read().unwrap().nr33 }
-            0xff1e => { if write { self.sound.write().unwrap().nr34 = val; } self.sound.read().unwrap().nr34 }
-            0xff20 => { if write { self.sound.write().unwrap().nr41 = val; } self.sound.read().unwrap().nr41 }
-            0xff21 => { if write { self.sound.write().unwrap().nr42 = val; } self.sound.read().unwrap().nr42 }
-            0xff22 => { if write { self.sound.write().unwrap().nr43 = val; } self.sound.read().unwrap().nr43 }
-            0xff23 => { if write { self.sound.write().unwrap().nr44 = val; } self.sound.read().unwrap().nr44 }
-            0xff24 => { if write { self.sound.write().unwrap().nr50 = val; } self.sound.read().unwrap().nr50 }
-            0xff25 => { if write { self.sound.write().unwrap().nr51 = val; } self.sound.read().unwrap().nr51 }
-            0xff26 => { if write { self.sound.write().unwrap().nr52 = val; } self.sound.read().unwrap().nr52 }
-
-            //0xff30 ... 0xff3f => { if write { self.sound.borrow_mut().wave_ram[addr - 0xff30 as usize] = val; } self.sound.borrow().wave_ram[addr - 0xff30 as usize] }
+            0xff10 ... 0xff3f => { self.sound.write().unwrap().handle_addr(addr, write, val) }
 
             0xff40 => { if write { self.lcd.borrow_mut().ctl = val; } self.lcd.borrow().ctl }
             0xff41 => { if write { self.lcd.borrow_mut().stat = val; } self.lcd.borrow().stat }
@@ -102,6 +80,9 @@ impl MemoryMap {
     }
 
     fn handle_addr(&mut self, addr: u16, write: bool, val: u8) -> u8 {
+        if addr == 0xdfe9 || addr == 0xdfe8 {
+            //println!("NJ handling addr={:04x} {} {}", addr, write, val);
+        }
         match addr {
             // rom bank 0
             0 ... 0x3fff => {

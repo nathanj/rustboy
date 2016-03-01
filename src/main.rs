@@ -141,6 +141,7 @@ fn main() {
         println!("spec = {:?}", spec);
         sound::SoundPlayer {
             spec: spec,
+            volume: 0.05,
             x: 5,
             phase: 0.0,
             sound: sound.clone(),
@@ -189,7 +190,9 @@ fn main() {
                 }
             }
 
-            //if cycles > 330_000_000 {
+            //gb.cpu.tracing = true;
+
+            //if cycles > 58_000_000 {
             //    gb.cpu.tracing = true;
             //}
 
@@ -209,9 +212,9 @@ fn main() {
             //println!("ms={}", delta.num_milliseconds());
 
             //if cycles > 330_000_000 {
-            if delta.num_milliseconds() < 16 {
-                thread::sleep_ms(16 - delta.num_milliseconds() as u32);
-            }
+            //if delta.num_milliseconds() < 16 {
+            //    thread::sleep_ms(16 - delta.num_milliseconds() as u32);
+            //}
             //}
 
             //break 'running;
