@@ -27,10 +27,12 @@ pub struct Cpu {
 
 impl fmt::Debug for Cpu {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Cpu {{ af:{:04x}({}{}) bc:{:04x} de:{:04x} \
+        write!(f, "Cpu {{ af:{:04x}({}{}{}{}) bc:{:04x} de:{:04x} \
                hl:{:04x} pc:{:4x} sp:{:4x} cycles:{} }}",
                self.af(),
                if self.f & FLAG_ZERO > 0 { 'z' } else { '.' },
+               if self.f & FLAG_SUBTRACT > 0 { 's' } else { '.' },
+               if self.f & FLAG_HALF_CARRY > 0 { 'h' } else { '.' },
                if self.f & FLAG_CARRY > 0 { 'c' } else { '.' },
                self.bc(), self.de(), self.hl(),
                self.pc, self.sp, self.cycles)
@@ -81,6 +83,7 @@ impl Cpu {
     fn set_af(&mut self, af: u16) {
         self.a = (af >> 8) as u8;
         self.f = (af & 0xff) as u8;
+        self.f &= 0xf0; // the bottom four bits of f are always 0
     }
     fn bc(&self) -> u16 {
         return (self.b as u16) << 8 | (self.c as u16);
@@ -154,7 +157,7 @@ impl Cpu {
         let a = self.a;
         self.set_zero(a == 0);
         self.set_subtract(false);
-        self.set_half_carry(a & 0xf < pa & 0xf);
+        self.set_half_carry((a & 0xf) < (pa & 0xf));
         self.set_carry(a < pa);
     }
 
@@ -230,7 +233,7 @@ impl Cpu {
         let tmp = a.wrapping_sub(val);
         self.set_zero(a == val);
         self.set_subtract(true);
-        self.set_half_carry(tmp & 0xf > a & 0xf);
+        self.set_half_carry((tmp & 0xf) > (a & 0xf));
         self.set_carry(val > a);
     }
 
@@ -349,30 +352,24 @@ impl Cpu {
         let newval = val.wrapping_add(1);
         self.set_zero(newval == 0);
         self.set_subtract(false);
-        self.set_half_carry(newval & 0xf == 0);
+        self.set_half_carry((newval & 0xf) == 0);
         return newval;
     }
 
     fn inc16(&mut self, val: u16) -> u16 {
-        let newval = val.wrapping_add(1);
-        //self.set_zero(newval == 0);
-        //self.set_subtract(false);
-        return newval;
+        val.wrapping_add(1)
     }
 
     fn dec(&mut self, val: u8) -> u8 {
         let newval = val.wrapping_sub(1);
         self.set_zero(newval == 0);
         self.set_subtract(true);
-        self.set_half_carry(newval & 0xf == 0xf);
+        self.set_half_carry((newval & 0xf) == 0xf);
         return newval;
     }
 
     fn dec16(&mut self, val: u16) -> u16 {
-        let newval = val.wrapping_sub(1);
-        //self.set_zero(newval == 0);
-        //self.set_subtract(true);
-        return newval;
+        val.wrapping_sub(1)
     }
 
     fn stack_write_u16(&mut self, mm: &mut mem::MemoryMap, addr: u16) {
@@ -405,9 +402,9 @@ impl Cpu {
     fn add_hl(&mut self, val: u16) {
         let hl = self.hl();
         let newval = hl.wrapping_add(val);
-        self.set_carry(newval < hl);
         self.set_subtract(false);
-        self.set_half_carry(false); // TODO
+        self.set_half_carry((hl & 0xfff) + (val & 0xfff) > 0xfff);
+        self.set_carry(newval < hl);
         self.set_hl(newval);
     }
 
@@ -802,7 +799,9 @@ impl Cpu {
             },
             0x08 => {
                 let val = self.read_u16(mm, pc + 1);
-                panic!("ld (${:04x}), sp", val);
+                trace!("ld (${:04x}), sp", val);
+                mm.write(val + 1, (self.sp >> 8) as u8);
+                mm.write(val, (self.sp & 0xff) as u8);
                 self.cycles += 20;
                 pc += 3;
             },
@@ -1120,8 +1119,9 @@ impl Cpu {
             },
             0x33 => {
                 my_log!(self,"inc sp");
-                let sp = self.sp;
-                self.sp = self.inc16(sp);
+                println!("old sp = {:04x}", self.sp);
+                self.sp = self.sp.wrapping_add(1);
+                println!("new sp = {:04x}", self.sp);
                 self.cycles += 8;
                 pc += 1;
             },
@@ -1183,8 +1183,7 @@ impl Cpu {
             },
             0x3b => {
                 my_log!(self,"dec sp");
-                let sp = self.sp;
-                self.sp = self.dec16(sp);
+                self.sp = self.sp.wrapping_sub(1);
                 self.cycles += 8;
                 pc += 2;
             },
@@ -2345,8 +2344,14 @@ impl Cpu {
             },
             0xe8 => {
                 let val = mm.read(pc + 1);
-                my_log!(self,"add sp, ${:02x}", val);
-                self.sp += val as u16;
+                println!("add sp, ${:02x}", val);
+                let sp = self.sp;
+                self.sp = self.sp.wrapping_add(val as i8 as u16);
+                self.set_zero(false);
+                self.set_subtract(false);
+                self.set_half_carry((sp & 0xfff) + (val as i8 as u16 & 0xfff) > 0xfff);
+                self.set_carry(sp.wrapping_add(val as i8 as u16) < sp);
+                println!("sp={:04x} newsp={:04x} f={:02x}", sp, self.sp, self.f);
                 self.cycles += 16;
                 pc += 2;
             },
@@ -2428,12 +2433,19 @@ impl Cpu {
             },
             0xf8 => {
                 let val = mm.read(pc + 1);
-                panic!("ld hl, sp+${:02x}", val);
+                trace!("ld hl, sp+${:02x}", val);
+                let sp = self.sp;
+                self.set_hl(sp.wrapping_add(val as i8 as u16));
+                self.set_zero(false);
+                self.set_subtract(false);
+                self.set_half_carry((sp & 0xf) + (val as i8 as u16 & 0xf) > 0xf);
+                self.set_carry(sp.wrapping_add(val as i8 as u16) < sp);
                 self.cycles += 12;
                 pc += 2;
             },
             0xf9 => {
-                panic!("ld sp, hl");
+                trace!("ld sp, hl");
+                self.sp = self.hl();
                 self.cycles += 8;
                 pc += 1;
             },
