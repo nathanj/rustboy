@@ -248,6 +248,8 @@ impl Cpu {
             self.set_carry(true);
         }
         self.set_zero(newval == 0);
+        self.set_subtract(false);
+        self.set_half_carry(false);
 
         return newval;
     }
@@ -409,66 +411,26 @@ impl Cpu {
     }
 
     fn daa(&mut self) {
-        let upper = self.a >> 4;
-        let lower = self.a & 0xf;
-
         if !self.subtract() {
-            if !self.carry() && upper <= 0x9 && !self.half_carry() && lower <= 0x9 {
-                self.set_carry(false);
-            } else if !self.carry() && upper >= 0x9 && !self.half_carry() && lower <= 0x9 {
-                self.set_carry(false);
-            } else if !self.carry() && upper <= 0x8 && !self.half_carry() && lower >= 0xa {
-                self.a += 0x6;
-                self.set_carry(false);
-            } else if !self.carry() && upper <= 0x9 && self.half_carry() && lower >= 0x3 {
-                self.a += 0x6;
-                self.set_carry(false);
-            } else if !self.carry() && upper >= 0xa && !self.half_carry() && lower <= 0x9 {
-                self.a += 0x60;
+            if self.carry() || self.a > 0x99 {
+                self.a = self.a.wrapping_add(0x60);
                 self.set_carry(true);
-            } else if !self.carry() && upper >= 0x9 && !self.half_carry() && lower >= 0xa {
-                self.a += 0x66;
-                self.set_carry(true);
-            } else if !self.carry() && upper >= 0xa && self.half_carry() && lower >= 0x3 {
-                self.a += 0x66;
-                self.set_carry(true);
-            } else if self.carry() && upper <= 0x2 && !self.half_carry() && lower <= 0x9 {
-                self.a += 0x60;
-                self.set_carry(true);
-            } else if self.carry() && upper <= 0x2 && !self.half_carry() && lower >= 0xa {
-                self.a += 0x66;
-                self.set_carry(true);
-            } else if self.carry() && upper <= 0x3 && self.half_carry() && lower <= 0x3 {
-                self.a += 0x66;
-                self.set_carry(true);
-            } else {
-                println!("bad daa add carry={} half={} upper={:x} lower={:x}",
-                         self.carry(), self.half_carry(), upper, lower);
-                println!("{:?}", self);
             }
-        } else {
-
-            if !self.carry() && upper <= 0x9 && !self.half_carry() && lower <= 0x9 {
-                self.set_carry(false);
-            } else if !self.carry() && upper <= 0x8 && self.half_carry() && lower >= 0x6 {
-                self.a += 0xfa;
-                self.set_carry(false);
-            } else if self.carry() && upper >= 0x7 && !self.half_carry() && lower <= 0x9 {
-                self.a += 0xa0;
-                self.set_carry(true);
-            } else if self.carry() && upper >= 0x6 && self.half_carry() && lower >= 0x6 {
-                self.a += 0x9a;
-                self.set_carry(true);
-            } else {
-                println!("bad daa add carry={} half={} upper={:x} lower={:x}",
-                         self.carry(), self.half_carry(), upper, lower);
-                println!("{:?}", self);
+            if self.half_carry() || (self.a & 0xf) > 0x9 {
+                self.a = self.a.wrapping_add(0x06);
+                self.set_half_carry(false);
             }
+        } else if self.carry() && self.half_carry() {
+            self.a = self.a.wrapping_add(0x9a);
+            self.set_half_carry(false);
+        } else if self.carry() {
+            self.a = self.a.wrapping_add(0xa0);
+        } else if self.half_carry() {
+            self.a = self.a.wrapping_add(0xfa);
+            self.set_half_carry(false);
         }
-
         let a = self.a;
         self.set_zero(a == 0);
-        self.set_half_carry(false);
     }
 
     fn handle_cb(&mut self, mm: &mut mem::MemoryMap) -> u32 {
@@ -480,7 +442,7 @@ impl Cpu {
             0x01 => { my_log!(self,"rlc c"); let val = self.c; self.c = self.rlc(val); cycles += 8; },
             0x02 => { my_log!(self,"rlc d"); let val = self.d; self.d = self.rlc(val); cycles += 8; },
             0x03 => { my_log!(self,"rlc e"); let val = self.e; self.e = self.rlc(val); cycles += 8; },
-            0x04 => { my_log!(self,"rlc h"); let val = self.h; self.l = self.rlc(val); cycles += 8; },
+            0x04 => { my_log!(self,"rlc h"); let val = self.h; self.h = self.rlc(val); cycles += 8; },
             0x05 => { my_log!(self,"rlc l"); let val = self.l; self.l = self.rlc(val); cycles += 8; },
             0x06 => { my_log!(self,"rlc (hl)"); let hl = self.hl(); let val = self.rlc(mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0x07 => { my_log!(self,"rlc a"); let val = self.a; self.a = self.rlc(val); cycles += 8; },
@@ -488,7 +450,7 @@ impl Cpu {
             0x09 => { my_log!(self,"rrc c"); let val = self.c; self.c = self.rrc(val); cycles += 8; },
             0x0a => { my_log!(self,"rrc d"); let val = self.d; self.d = self.rrc(val); cycles += 8; },
             0x0b => { my_log!(self,"rrc e"); let val = self.e; self.e = self.rrc(val); cycles += 8; },
-            0x0c => { my_log!(self,"rrc h"); let val = self.h; self.l = self.rrc(val); cycles += 8; },
+            0x0c => { my_log!(self,"rrc h"); let val = self.h; self.h = self.rrc(val); cycles += 8; },
             0x0d => { my_log!(self,"rrc l"); let val = self.l; self.l = self.rrc(val); cycles += 8; },
             0x0e => { my_log!(self,"rrc (hl)"); let hl = self.hl(); let val = self.rrc(mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0x0f => { my_log!(self,"rrc a"); let val = self.a; self.a = self.rrc(val); cycles += 8; },
@@ -496,7 +458,7 @@ impl Cpu {
             0x11 => { my_log!(self,"rl c"); let val = self.c; self.c = self.rl(val); cycles += 8; },
             0x12 => { my_log!(self,"rl d"); let val = self.d; self.d = self.rl(val); cycles += 8; },
             0x13 => { my_log!(self,"rl e"); let val = self.e; self.e = self.rl(val); cycles += 8; },
-            0x14 => { my_log!(self,"rl h"); let val = self.h; self.l = self.rl(val); cycles += 8; },
+            0x14 => { my_log!(self,"rl h"); let val = self.h; self.h = self.rl(val); cycles += 8; },
             0x15 => { my_log!(self,"rl l"); let val = self.l; self.l = self.rl(val); cycles += 8; },
             0x16 => { my_log!(self,"rl (hl)"); let hl = self.hl(); let val = self.rl(mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0x17 => { my_log!(self,"rl a"); let val = self.a; self.a = self.rl(val); cycles += 8; },
@@ -504,7 +466,7 @@ impl Cpu {
             0x19 => { my_log!(self,"rr c"); let val = self.c; self.c = self.rr(val); cycles += 8; },
             0x1a => { my_log!(self,"rr d"); let val = self.d; self.d = self.rr(val); cycles += 8; },
             0x1b => { my_log!(self,"rr e"); let val = self.e; self.e = self.rr(val); cycles += 8; },
-            0x1c => { my_log!(self,"rr h"); let val = self.h; self.l = self.rr(val); cycles += 8; },
+            0x1c => { my_log!(self,"rr h"); let val = self.h; self.h = self.rr(val); cycles += 8; },
             0x1d => { my_log!(self,"rr l"); let val = self.l; self.l = self.rr(val); cycles += 8; },
             0x1e => { my_log!(self,"rr (hl)"); let hl = self.hl(); let val = self.rr(mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0x1f => { my_log!(self,"rr a"); let val = self.a; self.a = self.rr(val); cycles += 8; },
@@ -512,7 +474,7 @@ impl Cpu {
             0x21 => { my_log!(self,"sla c"); let val = self.c; self.c = self.sla(val); cycles += 8; },
             0x22 => { my_log!(self,"sla d"); let val = self.d; self.d = self.sla(val); cycles += 8; },
             0x23 => { my_log!(self,"sla e"); let val = self.e; self.e = self.sla(val); cycles += 8; },
-            0x24 => { my_log!(self,"sla h"); let val = self.h; self.l = self.sla(val); cycles += 8; },
+            0x24 => { my_log!(self,"sla h"); let val = self.h; self.h = self.sla(val); cycles += 8; },
             0x25 => { my_log!(self,"sla l"); let val = self.l; self.l = self.sla(val); cycles += 8; },
             0x26 => { my_log!(self,"sla (hl)"); let hl = self.hl(); let val = self.sla(mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0x27 => { my_log!(self,"sla a"); let val = self.a; self.a = self.sla(val); cycles += 8; },
@@ -520,7 +482,7 @@ impl Cpu {
             0x29 => { my_log!(self,"sra c"); let val = self.c; self.c = self.sra(val); cycles += 8; },
             0x2a => { my_log!(self,"sra d"); let val = self.d; self.d = self.sra(val); cycles += 8; },
             0x2b => { my_log!(self,"sra e"); let val = self.e; self.e = self.sra(val); cycles += 8; },
-            0x2c => { my_log!(self,"sra h"); let val = self.h; self.l = self.sra(val); cycles += 8; },
+            0x2c => { my_log!(self,"sra h"); let val = self.h; self.h = self.sra(val); cycles += 8; },
             0x2d => { my_log!(self,"sra l"); let val = self.l; self.l = self.sra(val); cycles += 8; },
             0x2e => { my_log!(self,"sra (hl)"); let hl = self.hl(); let val = self.sra(mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0x2f => { my_log!(self,"sra a"); let val = self.a; self.a = self.sra(val); cycles += 8; },
@@ -528,7 +490,7 @@ impl Cpu {
             0x31 => { my_log!(self,"swap c"); let val = self.c; self.c = self.swap(val); cycles += 8; },
             0x32 => { my_log!(self,"swap d"); let val = self.d; self.d = self.swap(val); cycles += 8; },
             0x33 => { my_log!(self,"swap e"); let val = self.e; self.e = self.swap(val); cycles += 8; },
-            0x34 => { my_log!(self,"swap h"); let val = self.h; self.l = self.swap(val); cycles += 8; },
+            0x34 => { my_log!(self,"swap h"); let val = self.h; self.h = self.swap(val); cycles += 8; },
             0x35 => { my_log!(self,"swap l"); let val = self.l; self.l = self.swap(val); cycles += 8; },
             0x36 => { my_log!(self,"swap (hl)"); let hl = self.hl(); let val = self.swap(mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0x37 => { my_log!(self,"swap a"); let val = self.a; self.a = self.swap(val); cycles += 8; },
@@ -536,7 +498,7 @@ impl Cpu {
             0x39 => { my_log!(self,"srl c"); let val = self.c; self.c = self.srl(val); cycles += 8; },
             0x3a => { my_log!(self,"srl d"); let val = self.d; self.d = self.srl(val); cycles += 8; },
             0x3b => { my_log!(self,"srl e"); let val = self.e; self.e = self.srl(val); cycles += 8; },
-            0x3c => { my_log!(self,"srl h"); let val = self.h; self.l = self.srl(val); cycles += 8; },
+            0x3c => { my_log!(self,"srl h"); let val = self.h; self.h = self.srl(val); cycles += 8; },
             0x3d => { my_log!(self,"srl l"); let val = self.l; self.l = self.srl(val); cycles += 8; },
             0x3e => { my_log!(self,"srl (hl)"); let hl = self.hl(); let val = self.srl(mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0x3f => { my_log!(self,"srl a"); let val = self.a; self.a = self.srl(val); cycles += 8; },
@@ -608,7 +570,7 @@ impl Cpu {
             0x81 => { my_log!(self,"res 0, c"); let val = self.c; self.c = self.res(0, val); cycles += 8; },
             0x82 => { my_log!(self,"res 0, d"); let val = self.d; self.d = self.res(0, val); cycles += 8; },
             0x83 => { my_log!(self,"res 0, e"); let val = self.e; self.e = self.res(0, val); cycles += 8; },
-            0x84 => { my_log!(self,"res 0, h"); let val = self.h; self.l = self.res(0, val); cycles += 8; },
+            0x84 => { my_log!(self,"res 0, h"); let val = self.h; self.h = self.res(0, val); cycles += 8; },
             0x85 => { my_log!(self,"res 0, l"); let val = self.l; self.l = self.res(0, val); cycles += 8; },
             0x86 => { my_log!(self,"res 0, (hl)"); let hl = self.hl(); let val = self.res(0, mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0x87 => { my_log!(self,"res 0, a"); let val = self.a; self.a = self.res(0, val); cycles += 8; },
@@ -616,7 +578,7 @@ impl Cpu {
             0x89 => { my_log!(self,"res 1, c"); let val = self.c; self.c = self.res(1, val); cycles += 8; },
             0x8a => { my_log!(self,"res 1, d"); let val = self.d; self.d = self.res(1, val); cycles += 8; },
             0x8b => { my_log!(self,"res 1, e"); let val = self.e; self.e = self.res(1, val); cycles += 8; },
-            0x8c => { my_log!(self,"res 1, h"); let val = self.h; self.l = self.res(1, val); cycles += 8; },
+            0x8c => { my_log!(self,"res 1, h"); let val = self.h; self.h = self.res(1, val); cycles += 8; },
             0x8d => { my_log!(self,"res 1, l"); let val = self.l; self.l = self.res(1, val); cycles += 8; },
             0x8e => { my_log!(self,"res 1, (hl)"); let hl = self.hl(); let val = self.res(1, mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0x8f => { my_log!(self,"res 1, a"); let val = self.a; self.a = self.res(1, val); cycles += 8; },
@@ -624,7 +586,7 @@ impl Cpu {
             0x91 => { my_log!(self,"res 2, c"); let val = self.c; self.c = self.res(2, val); cycles += 8; },
             0x92 => { my_log!(self,"res 2, d"); let val = self.d; self.d = self.res(2, val); cycles += 8; },
             0x93 => { my_log!(self,"res 2, e"); let val = self.e; self.e = self.res(2, val); cycles += 8; },
-            0x94 => { my_log!(self,"res 2, h"); let val = self.h; self.l = self.res(2, val); cycles += 8; },
+            0x94 => { my_log!(self,"res 2, h"); let val = self.h; self.h = self.res(2, val); cycles += 8; },
             0x95 => { my_log!(self,"res 2, l"); let val = self.l; self.l = self.res(2, val); cycles += 8; },
             0x96 => { my_log!(self,"res 2, (hl)"); let hl = self.hl(); let val = self.res(2, mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0x97 => { my_log!(self,"res 2, a"); let val = self.a; self.a = self.res(2, val); cycles += 8; },
@@ -632,7 +594,7 @@ impl Cpu {
             0x99 => { my_log!(self,"res 3, c"); let val = self.c; self.c = self.res(3, val); cycles += 8; },
             0x9a => { my_log!(self,"res 3, d"); let val = self.d; self.d = self.res(3, val); cycles += 8; },
             0x9b => { my_log!(self,"res 3, e"); let val = self.e; self.e = self.res(3, val); cycles += 8; },
-            0x9c => { my_log!(self,"res 3, h"); let val = self.h; self.l = self.res(3, val); cycles += 8; },
+            0x9c => { my_log!(self,"res 3, h"); let val = self.h; self.h = self.res(3, val); cycles += 8; },
             0x9d => { my_log!(self,"res 3, l"); let val = self.l; self.l = self.res(3, val); cycles += 8; },
             0x9e => { my_log!(self,"res 3, (hl)"); let hl = self.hl(); let val = self.res(3, mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0x9f => { my_log!(self,"res 3, a"); let val = self.a; self.a = self.res(3, val); cycles += 8; },
@@ -640,7 +602,7 @@ impl Cpu {
             0xa1 => { my_log!(self,"res 4, c"); let val = self.c; self.c = self.res(4, val); cycles += 8; },
             0xa2 => { my_log!(self,"res 4, d"); let val = self.d; self.d = self.res(4, val); cycles += 8; },
             0xa3 => { my_log!(self,"res 4, e"); let val = self.e; self.e = self.res(4, val); cycles += 8; },
-            0xa4 => { my_log!(self,"res 4, h"); let val = self.h; self.l = self.res(4, val); cycles += 8; },
+            0xa4 => { my_log!(self,"res 4, h"); let val = self.h; self.h = self.res(4, val); cycles += 8; },
             0xa5 => { my_log!(self,"res 4, l"); let val = self.l; self.l = self.res(4, val); cycles += 8; },
             0xa6 => { my_log!(self,"res 4, (hl)"); let hl = self.hl(); let val = self.res(4, mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0xa7 => { my_log!(self,"res 4, a"); let val = self.a; self.a = self.res(4, val); cycles += 8; },
@@ -648,7 +610,7 @@ impl Cpu {
             0xa9 => { my_log!(self,"res 5, c"); let val = self.c; self.c = self.res(5, val); cycles += 8; },
             0xaa => { my_log!(self,"res 5, d"); let val = self.d; self.d = self.res(5, val); cycles += 8; },
             0xab => { my_log!(self,"res 5, e"); let val = self.e; self.e = self.res(5, val); cycles += 8; },
-            0xac => { my_log!(self,"res 5, h"); let val = self.h; self.l = self.res(5, val); cycles += 8; },
+            0xac => { my_log!(self,"res 5, h"); let val = self.h; self.h = self.res(5, val); cycles += 8; },
             0xad => { my_log!(self,"res 5, l"); let val = self.l; self.l = self.res(5, val); cycles += 8; },
             0xae => { my_log!(self,"res 5, (hl)"); let hl = self.hl(); let val = self.res(5, mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0xaf => { my_log!(self,"res 5, a"); let val = self.a; self.a = self.res(5, val); cycles += 8; },
@@ -656,7 +618,7 @@ impl Cpu {
             0xb1 => { my_log!(self,"res 6, c"); let val = self.c; self.c = self.res(6, val); cycles += 8; },
             0xb2 => { my_log!(self,"res 6, d"); let val = self.d; self.d = self.res(6, val); cycles += 8; },
             0xb3 => { my_log!(self,"res 6, e"); let val = self.e; self.e = self.res(6, val); cycles += 8; },
-            0xb4 => { my_log!(self,"res 6, h"); let val = self.h; self.l = self.res(6, val); cycles += 8; },
+            0xb4 => { my_log!(self,"res 6, h"); let val = self.h; self.h = self.res(6, val); cycles += 8; },
             0xb5 => { my_log!(self,"res 6, l"); let val = self.l; self.l = self.res(6, val); cycles += 8; },
             0xb6 => { my_log!(self,"res 6, (hl)"); let hl = self.hl(); let val = self.res(6, mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0xb7 => { my_log!(self,"res 6, a"); let val = self.a; self.a = self.res(6, val); cycles += 8; },
@@ -664,7 +626,7 @@ impl Cpu {
             0xb9 => { my_log!(self,"res 7, c"); let val = self.c; self.c = self.res(7, val); cycles += 8; },
             0xba => { my_log!(self,"res 7, d"); let val = self.d; self.d = self.res(7, val); cycles += 8; },
             0xbb => { my_log!(self,"res 7, e"); let val = self.e; self.e = self.res(7, val); cycles += 8; },
-            0xbc => { my_log!(self,"res 7, h"); let val = self.h; self.l = self.res(7, val); cycles += 8; },
+            0xbc => { my_log!(self,"res 7, h"); let val = self.h; self.h = self.res(7, val); cycles += 8; },
             0xbd => { my_log!(self,"res 7, l"); let val = self.l; self.l = self.res(7, val); cycles += 8; },
             0xbe => { my_log!(self,"res 7, (hl)"); let hl = self.hl(); let val = self.res(7, mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0xbf => { my_log!(self,"res 7, a"); let val = self.a; self.a = self.res(7, val); cycles += 8; },
@@ -672,7 +634,7 @@ impl Cpu {
             0xc1 => { my_log!(self,"set 0, c"); let val = self.c; self.c = self.set(0, val); cycles += 8; },
             0xc2 => { my_log!(self,"set 0, d"); let val = self.d; self.d = self.set(0, val); cycles += 8; },
             0xc3 => { my_log!(self,"set 0, e"); let val = self.e; self.e = self.set(0, val); cycles += 8; },
-            0xc4 => { my_log!(self,"set 0, h"); let val = self.h; self.l = self.set(0, val); cycles += 8; },
+            0xc4 => { my_log!(self,"set 0, h"); let val = self.h; self.h = self.set(0, val); cycles += 8; },
             0xc5 => { my_log!(self,"set 0, l"); let val = self.l; self.l = self.set(0, val); cycles += 8; },
             0xc6 => { my_log!(self,"set 0, (hl)"); let hl = self.hl(); let val = self.set(0, mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0xc7 => { my_log!(self,"set 0, a"); let val = self.a; self.a = self.set(0, val); cycles += 8; },
@@ -680,7 +642,7 @@ impl Cpu {
             0xc9 => { my_log!(self,"set 1, c"); let val = self.c; self.c = self.set(1, val); cycles += 8; },
             0xca => { my_log!(self,"set 1, d"); let val = self.d; self.d = self.set(1, val); cycles += 8; },
             0xcb => { my_log!(self,"set 1, e"); let val = self.e; self.e = self.set(1, val); cycles += 8; },
-            0xcc => { my_log!(self,"set 1, h"); let val = self.h; self.l = self.set(1, val); cycles += 8; },
+            0xcc => { my_log!(self,"set 1, h"); let val = self.h; self.h = self.set(1, val); cycles += 8; },
             0xcd => { my_log!(self,"set 1, l"); let val = self.l; self.l = self.set(1, val); cycles += 8; },
             0xce => { my_log!(self,"set 1, (hl)"); let hl = self.hl(); let val = self.set(1, mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0xcf => { my_log!(self,"set 1, a"); let val = self.a; self.a = self.set(1, val); cycles += 8; },
@@ -688,7 +650,7 @@ impl Cpu {
             0xd1 => { my_log!(self,"set 2, c"); let val = self.c; self.c = self.set(2, val); cycles += 8; },
             0xd2 => { my_log!(self,"set 2, d"); let val = self.d; self.d = self.set(2, val); cycles += 8; },
             0xd3 => { my_log!(self,"set 2, e"); let val = self.e; self.e = self.set(2, val); cycles += 8; },
-            0xd4 => { my_log!(self,"set 2, h"); let val = self.h; self.l = self.set(2, val); cycles += 8; },
+            0xd4 => { my_log!(self,"set 2, h"); let val = self.h; self.h = self.set(2, val); cycles += 8; },
             0xd5 => { my_log!(self,"set 2, l"); let val = self.l; self.l = self.set(2, val); cycles += 8; },
             0xd6 => { my_log!(self,"set 2, (hl)"); let hl = self.hl(); let val = self.set(2, mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0xd7 => { my_log!(self,"set 2, a"); let val = self.a; self.a = self.set(2, val); cycles += 8; },
@@ -696,7 +658,7 @@ impl Cpu {
             0xd9 => { my_log!(self,"set 3, c"); let val = self.c; self.c = self.set(3, val); cycles += 8; },
             0xda => { my_log!(self,"set 3, d"); let val = self.d; self.d = self.set(3, val); cycles += 8; },
             0xdb => { my_log!(self,"set 3, e"); let val = self.e; self.e = self.set(3, val); cycles += 8; },
-            0xdc => { my_log!(self,"set 3, h"); let val = self.h; self.l = self.set(3, val); cycles += 8; },
+            0xdc => { my_log!(self,"set 3, h"); let val = self.h; self.h = self.set(3, val); cycles += 8; },
             0xdd => { my_log!(self,"set 3, l"); let val = self.l; self.l = self.set(3, val); cycles += 8; },
             0xde => { my_log!(self,"set 3, (hl)"); let hl = self.hl(); let val = self.set(3, mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0xdf => { my_log!(self,"set 3, a"); let val = self.a; self.a = self.set(3, val); cycles += 8; },
@@ -704,7 +666,7 @@ impl Cpu {
             0xe1 => { my_log!(self,"set 4, c"); let val = self.c; self.c = self.set(4, val); cycles += 8; },
             0xe2 => { my_log!(self,"set 4, d"); let val = self.d; self.d = self.set(4, val); cycles += 8; },
             0xe3 => { my_log!(self,"set 4, e"); let val = self.e; self.e = self.set(4, val); cycles += 8; },
-            0xe4 => { my_log!(self,"set 4, h"); let val = self.h; self.l = self.set(4, val); cycles += 8; },
+            0xe4 => { my_log!(self,"set 4, h"); let val = self.h; self.h = self.set(4, val); cycles += 8; },
             0xe5 => { my_log!(self,"set 4, l"); let val = self.l; self.l = self.set(4, val); cycles += 8; },
             0xe6 => { my_log!(self,"set 4, (hl)"); let hl = self.hl(); let val = self.set(4, mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0xe7 => { my_log!(self,"set 4, a"); let val = self.a; self.a = self.set(4, val); cycles += 8; },
@@ -712,7 +674,7 @@ impl Cpu {
             0xe9 => { my_log!(self,"set 5, c"); let val = self.c; self.c = self.set(5, val); cycles += 8; },
             0xea => { my_log!(self,"set 5, d"); let val = self.d; self.d = self.set(5, val); cycles += 8; },
             0xeb => { my_log!(self,"set 5, e"); let val = self.e; self.e = self.set(5, val); cycles += 8; },
-            0xec => { my_log!(self,"set 5, h"); let val = self.h; self.l = self.set(5, val); cycles += 8; },
+            0xec => { my_log!(self,"set 5, h"); let val = self.h; self.h = self.set(5, val); cycles += 8; },
             0xed => { my_log!(self,"set 5, l"); let val = self.l; self.l = self.set(5, val); cycles += 8; },
             0xee => { my_log!(self,"set 5, (hl)"); let hl = self.hl(); let val = self.set(5, mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0xef => { my_log!(self,"set 5, a"); let val = self.a; self.a = self.set(5, val); cycles += 8; },
@@ -720,7 +682,7 @@ impl Cpu {
             0xf1 => { my_log!(self,"set 6, c"); let val = self.c; self.c = self.set(6, val); cycles += 8; },
             0xf2 => { my_log!(self,"set 6, d"); let val = self.d; self.d = self.set(6, val); cycles += 8; },
             0xf3 => { my_log!(self,"set 6, e"); let val = self.e; self.e = self.set(6, val); cycles += 8; },
-            0xf4 => { my_log!(self,"set 6, h"); let val = self.h; self.l = self.set(6, val); cycles += 8; },
+            0xf4 => { my_log!(self,"set 6, h"); let val = self.h; self.h = self.set(6, val); cycles += 8; },
             0xf5 => { my_log!(self,"set 6, l"); let val = self.l; self.l = self.set(6, val); cycles += 8; },
             0xf6 => { my_log!(self,"set 6, (hl)"); let hl = self.hl(); let val = self.set(6, mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0xf7 => { my_log!(self,"set 6, a"); let val = self.a; self.a = self.set(6, val); cycles += 8; },
@@ -728,7 +690,7 @@ impl Cpu {
             0xf9 => { my_log!(self,"set 7, c"); let val = self.c; self.c = self.set(7, val); cycles += 8; },
             0xfa => { my_log!(self,"set 7, d"); let val = self.d; self.d = self.set(7, val); cycles += 8; },
             0xfb => { my_log!(self,"set 7, e"); let val = self.e; self.e = self.set(7, val); cycles += 8; },
-            0xfc => { my_log!(self,"set 7, h"); let val = self.h; self.l = self.set(7, val); cycles += 8; },
+            0xfc => { my_log!(self,"set 7, h"); let val = self.h; self.h = self.set(7, val); cycles += 8; },
             0xfd => { my_log!(self,"set 7, l"); let val = self.l; self.l = self.set(7, val); cycles += 8; },
             0xfe => { my_log!(self,"set 7, (hl)"); let hl = self.hl(); let val = self.set(7, mm.read(hl)); mm.write(hl, val); cycles += 16; },
             0xff => { my_log!(self,"set 7, a"); let val = self.a; self.a = self.set(7, val); cycles += 8; },
@@ -794,6 +756,7 @@ impl Cpu {
                 my_log!(self,"rlca");
                 let val = self.a;
                 self.a = self.rlc(val);
+                self.set_zero(false);
                 self.cycles += 4;
                 pc += 1;
             },
@@ -851,6 +814,7 @@ impl Cpu {
                 my_log!(self,"rrca");
                 let a = self.a;
                 self.a = self.rrc(a);
+                self.set_zero(false);
                 self.cycles += 4;
                 pc += 1;
             },
@@ -906,6 +870,7 @@ impl Cpu {
                 my_log!(self,"rla");
                 let a = self.a;
                 self.a = self.rl(a);
+                self.set_zero(false);
                 self.cycles += 4;
                 pc += 1;
             },
@@ -962,6 +927,7 @@ impl Cpu {
                 my_log!(self,"rra");
                 let a = self.a;
                 self.a = self.rr(a);
+                self.set_zero(false);
                 self.cycles += 4;
                 pc += 1;
             },
@@ -1086,7 +1052,8 @@ impl Cpu {
                 my_log!(self,"cpl");
                 self.a = !self.a;
                 let a = self.a;
-                self.set_zero(a == 0);
+                self.set_subtract(true);
+                self.set_half_carry(true);
                 self.cycles += 4;
                 pc += 1;
             },
@@ -1151,7 +1118,10 @@ impl Cpu {
                 pc += 2;
             },
             0x37 => {
-                panic!("scf");
+                my_log!(self,"scf");
+                self.set_subtract(false);
+                self.set_half_carry(false);
+                self.set_carry(true);
                 self.cycles += 4;
                 pc += 1;
             },
@@ -1209,7 +1179,11 @@ impl Cpu {
                 pc += 2;
             },
             0x3f => {
-                panic!("ccf");
+                my_log!(self,"ccf");
+                let c = self.carry();
+                self.set_subtract(false);
+                self.set_half_carry(false);
+                self.set_carry(!c);
                 self.cycles += 4;
                 pc += 1;
             },
