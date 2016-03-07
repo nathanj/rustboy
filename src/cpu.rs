@@ -2344,14 +2344,13 @@ impl Cpu {
             },
             0xe8 => {
                 let val = mm.read(pc + 1);
-                println!("add sp, ${:02x}", val);
+                my_log!(self,"add sp, {}", val as i8);
                 let sp = self.sp;
                 self.sp = self.sp.wrapping_add(val as i8 as u16);
                 self.set_zero(false);
                 self.set_subtract(false);
-                self.set_half_carry((sp & 0xfff) + (val as i8 as u16 & 0xfff) > 0xfff);
-                self.set_carry(sp.wrapping_add(val as i8 as u16) < sp);
-                println!("sp={:04x} newsp={:04x} f={:02x}", sp, self.sp, self.f);
+                self.set_half_carry((sp & 0xf) + (val as i8 as u16 & 0xf) > 0xf);
+                self.set_carry((sp & 0xff) + (val as i8 as u16 & 0xff) > 0xff);
                 self.cycles += 16;
                 pc += 2;
             },
@@ -2433,13 +2432,13 @@ impl Cpu {
             },
             0xf8 => {
                 let val = mm.read(pc + 1);
-                trace!("ld hl, sp+${:02x}", val);
+                my_log!(self,"ld hl, sp+{}", val as i8);
                 let sp = self.sp;
                 self.set_hl(sp.wrapping_add(val as i8 as u16));
                 self.set_zero(false);
                 self.set_subtract(false);
                 self.set_half_carry((sp & 0xf) + (val as i8 as u16 & 0xf) > 0xf);
-                self.set_carry(sp.wrapping_add(val as i8 as u16) < sp);
+                self.set_carry((sp & 0xff) + (val as i8 as u16 & 0xff) > 0xff);
                 self.cycles += 12;
                 pc += 2;
             },
