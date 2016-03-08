@@ -1149,7 +1149,7 @@ impl Cpu {
                 let hl = self.hl();
                 self.set_hl(hl.wrapping_sub(1));
                 self.cycles += 8;
-                pc += 2;
+                pc += 1;
             },
             0x3b => {
                 my_log!(self,"dec sp");
