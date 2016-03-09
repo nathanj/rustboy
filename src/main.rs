@@ -144,6 +144,7 @@ fn main() {
             volume: 0.05,
             x: 5,
             phase: 0.0,
+            phase2: 0.0,
             sound: sound.clone(),
         }
     }).unwrap();
@@ -212,9 +213,9 @@ fn main() {
             //println!("ms={}", delta.num_milliseconds());
 
             //if cycles > 330_000_000 {
-            //if delta.num_milliseconds() < 16 {
-            //    thread::sleep_ms(16 - delta.num_milliseconds() as u32);
-            //}
+            if delta.num_milliseconds() < 16 {
+                thread::sleep_ms(16 - delta.num_milliseconds() as u32);
+            }
             //}
 
             //break 'running;
