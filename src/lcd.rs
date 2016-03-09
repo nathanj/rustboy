@@ -71,18 +71,17 @@ impl Lcd {
 
     fn put_pixel(&self,
                  mm: &mut mem::MemoryMap,
-                 pixels: &mut [u8; 160*144], x: usize, y: usize,
+                 pixels: &mut [u8; 160*144], x: i32, y: i32,
                  color: u8, oam: bool) {
+        if x < 0 || y < 0 {
+            return;
+        }
         let c = 0u8;
         if color == 0 && oam {
             // for sprites color 0 is transparent
             return;
         }
-        if y >= 144 || x >= 160 {
-            mm.dump(0x8000, 0x4000);
-            panic!("y = {}, x = {}", y, x);
-        }
-        pixels[y * 160 + x] = match color {
+        pixels[y as usize * 160 + x as usize] = match color {
             0 => { 0b111_111_11 }
             1 => { 0b100_100_10 }
             2 => { 0b010_010_01 }
@@ -93,7 +92,7 @@ impl Lcd {
 
     fn draw_tile(&self,
                  mm: &mut mem::MemoryMap,
-                 pixels: &mut [u8; 160*144], x: usize, y: usize,
+                 pixels: &mut [u8; 160*144], x: i32, y: i32,
                  tile_start_addr: u16,
                  palette: [u8; 4], oam_flags: u8, oam: bool) {
         for j in 0..8 {
@@ -101,8 +100,13 @@ impl Lcd {
             let l = mm.read(j*2 + tile_start_addr + 1);
             for k in 0..8 {
                 let p = (((h & (1<<k)) >> k) << 1) | ((l & (1<<k)) >> k);
-                let xpos = if oam_flags & OAM_X_FLIP > 0 { x + k as usize } else { x + 7 - k as usize };
-                let ypos = if oam_flags & OAM_Y_FLIP > 0 { y + 7 - j as usize } else { y + j as usize };
+                let xpos = if oam_flags & OAM_X_FLIP > 0 { x + k as i32 } else { x + 7 - k as i32 };
+                let ypos = if oam_flags & OAM_Y_FLIP > 0 { y + 7 - j as i32 } else { y + j as i32 };
+                if ypos >= 144 || xpos >= 160 {
+                    mm.dump(0x8000, 0xffff-0x8000);
+                    panic!("ctl = {:02x}, y = {} {}, x = {} {}, flags = {:02x}, k = {}, j = {}, tile_start_addr = {:04x}",
+                           self.ctl, ypos, y, xpos, x, oam_flags, k, j, tile_start_addr);
+                }
                 self.put_pixel(mm, pixels, xpos, ypos, palette[p as usize], oam);
             }
         }
@@ -119,7 +123,7 @@ impl Lcd {
         let mut tile_start_addr = 0x8000;
         for j in 0..12 {
             for i in 0..16 {
-                self.draw_tile(mm, pixels, i * 8, j * 8, tile_start_addr, palette, 0, false);
+                self.draw_tile(mm, pixels, i as i32 * 8, j as i32 * 8, tile_start_addr, palette, 0, false);
                 tile_start_addr += 16;
             }
         }
@@ -163,7 +167,7 @@ impl Lcd {
                 let tile_start_addr = self.get_tile_start_addr(tile);
                 let x = (i * 8 - self.scx % 8) as usize;
                 let y = (j * 8 - self.scy % 8) as usize;
-                self.draw_tile(mm, pixels, x, y, tile_start_addr, palette, 0, false);
+                self.draw_tile(mm, pixels, x as i32, y as i32, tile_start_addr, palette, 0, false);
             }
         }
     }
@@ -206,7 +210,7 @@ impl Lcd {
                 (obp & 0xc0) >> 6,
                 ];
 
-            self.draw_tile(mm, pixels, x as usize - 8, y as usize - 16, tile_start_addr, palette, flags, true);
+            self.draw_tile(mm, pixels, x as i32 - 8, y as i32 - 16, tile_start_addr, palette, flags, true);
         }
     }
 
