@@ -18,13 +18,19 @@ pub struct Sound {
     pub nr13 : u8, // frequency low (w)
     pub nr14 : u8, // frequency high (r/w)
 
-    ch1_length_remaining : u8,
+    ch1_length_cycles : u32,
+    ch1_volume : u8,
+    ch1_envelope_cycles : u32,
 
     // channel 2 - tone
     pub nr21 : u8, // sound length / wave pattern duty (r/w)
     pub nr22 : u8, // volume envelope (r/w)
     pub nr23 : u8, // frequency low (w)
     pub nr24 : u8, // frequency high (r/w)
+
+    ch2_length_cycles : u32,
+    ch2_volume : u8,
+    ch2_envelope_cycles : u32,
 
     // channel 3 - wave output
     pub nr30 : u8, // sound on/off (r/w)
@@ -60,154 +66,63 @@ impl AudioCallback for SoundPlayer {
     type Channel = f32;
 
     fn callback(&mut self, out: &mut [f32]) {
-        let s = self.sound.read().unwrap();
+        {
+            let s = self.sound.read().unwrap();
 
-        for x in out.iter_mut() {
-            *x = 0.0;
-        }
+            for x in out.iter_mut() {
+                *x = 0.0;
+            }
 
 
-        /*
+            /*
 
-        // channel 3
+            // channel 3
 
-        if s.nr30 & 0x80 == 0 || s.nr32 & 0b1100000 == 0 {
-        // sound off
-        for x in out.iter_mut() {
-         *x = 0.0;
-         }
-         }
+            if s.nr30 & 0x80 == 0 || s.nr32 & 0b1100000 == 0 {
+            // sound off
+            for x in out.iter_mut() {
+             *x = 0.0;
+             }
+             }
 
-         let freq_lo = s.nr33 as u32;
-         let freq_hi = s.nr34 as u32 & 0b111;
-         let freq = 65536 / (2048 - (freq_hi << 8 | freq_lo));
+             let freq_lo = s.nr33 as u32;
+             let freq_hi = s.nr34 as u32 & 0b111;
+             let freq = 65536 / (2048 - (freq_hi << 8 | freq_lo));
 
-         println!("spec = {:?}", self.spec);
-         println!("s = {:?}", *s);
-         println!("freq = {}", freq);
-         println!("wave_ram = {:?}", s.wave_ram);
+             println!("spec = {:?}", self.spec);
+             println!("s = {:?}", *s);
+             println!("freq = {}", freq);
+             println!("wave_ram = {:?}", s.wave_ram);
 
-         let volume_divisor = match s.nr32 & 0b1100000 >> 5 {
-         0 => { 1 }
-         1 => { 1 }
-         2 => { 2 }
-         3 => { 4 }
-         _ => { panic!() }
-         };
+             let volume_divisor = match s.nr32 & 0b1100000 >> 5 {
+             0 => { 1 }
+             1 => { 1 }
+             2 => { 2 }
+             3 => { 4 }
+             _ => { panic!() }
+             };
 
-         let mut mybuf : [f32; 32] = [0.0; 32];
-         for i in 0..16 {
-         mybuf[i * 2] = (s.wave_ram[i / 2] >> 4) as f32 / 16.0;
-         mybuf[i * 2 + 1] = (s.wave_ram[i / 2] & 0xF) as f32 / 16.0;
-         }
+             let mut mybuf : [f32; 32] = [0.0; 32];
+             for i in 0..16 {
+             mybuf[i * 2] = (s.wave_ram[i / 2] >> 4) as f32 / 16.0;
+             mybuf[i * 2 + 1] = (s.wave_ram[i / 2] & 0xF) as f32 / 16.0;
+             }
 
-         let mut wave_counter = 0;
-         for x in out.iter_mut() {
-         *x = mybuf[wave_counter];
-         wave_counter = (wave_counter + 1) % 32;
-         }
+             let mut wave_counter = 0;
+             for x in out.iter_mut() {
+             *x = mybuf[wave_counter];
+             wave_counter = (wave_counter + 1) % 32;
+             }
 
 */
 
-
-        // channel 1
-
-        {
             if s.nr52 & 0x80 == 0 {
                 return;
             }
-
-            let freq_lo = s.nr13 as u32;
-            let freq_hi = s.nr14 as u32 & 0b111;
-            let freq = 131072 / (2048 - (freq_hi << 8 | freq_lo));
-            let phase_inc = freq as f32 / self.spec.freq as f32;
-            let wave_duty = s.nr11 >> 6;
-
-            println!("spec = {:?}", self.spec);
-            println!("s = {:?}", *s);
-            println!("freq = {} wave_duty = {} phase_inc = {} phase = {} samples = {}",
-                     freq, wave_duty, phase_inc, self.phase, self.spec.samples);
-
-            //if s.nr10 & 0b1110000 > 0 {
-            //    panic!("sweep {:?}", *s);
-            //}
-            //if s.nr12 & 0b111 > 0 {
-            //    println!("handling envelope");
-            //    if s.nr12 & 0b1000 > 0 {
-            //        self.volume += 0.01;
-            //    } else {
-            //        self.volume -= 0.01;
-            //    }
-            //}
-
-            let phase_val = match wave_duty {
-                0b00 => 0.125,
-                0b01 => 0.250,
-                0b10 => 0.500,
-                0b11 => 0.750,
-                _ => panic!(),
-            };
-
-            for x in out.iter_mut() {
-
-                *x += if self.phase >= phase_val {
-                    self.volume
-                } else {
-                    -self.volume
-                };
-
-                self.phase = (self.phase + phase_inc) % 1.0;
-            }
         }
-        
-        // channel 2
-        {
-            if s.nr52 & 0x80 == 0 {
-                return;
-            }
 
-            let freq_lo = s.nr23 as u32;
-            let freq_hi = s.nr24 as u32 & 0b111;
-            let freq = 131072 / (2048 - (freq_hi << 8 | freq_lo));
-            let phase_inc = freq as f32 / self.spec.freq as f32;
-            let wave_duty = s.nr21 >> 6;
-
-            println!("spec = {:?}", self.spec);
-            println!("s = {:?}", *s);
-            println!("freq = {} wave_duty = {} phase_inc = {} phase = {} samples = {}",
-                     freq, wave_duty, phase_inc, self.phase, self.spec.samples);
-
-            //if s.nr10 & 0b1110000 > 0 {
-            //    panic!("sweep {:?}", *s);
-            //}
-            //if s.nr12 & 0b111 > 0 {
-            //    println!("handling envelope");
-            //    if s.nr12 & 0b1000 > 0 {
-            //        self.volume += 0.01;
-            //    } else {
-            //        self.volume -= 0.01;
-            //    }
-            //}
-
-            let phase_val = match wave_duty {
-                0b00 => 0.125,
-                0b01 => 0.250,
-                0b10 => 0.500,
-                0b11 => 0.750,
-                _ => panic!(),
-            };
-
-            for x in out.iter_mut() {
-
-                *x += if self.phase2 >= phase_val {
-                    self.volume
-                } else {
-                    -self.volume
-                };
-
-                self.phase2 = (self.phase2 + phase_inc) % 1.0;
-            }
-        }
+        self.handle_channel1(out);
+        self.handle_channel2(out);
     }
 }
 
@@ -244,6 +159,122 @@ impl fmt::Debug for Sound {
     }
 }
 
+impl SoundPlayer {
+
+    fn handle_channel1(&mut self, out: &mut [f32]) {
+        let mut s = self.sound.write().unwrap();
+
+        let freq_lo = s.nr13 as u32;
+        let freq_hi = s.nr14 as u32 & 0b111;
+        let freq = 131072 / (2048 - (freq_hi << 8 | freq_lo));
+        let phase_inc = freq as f32 / self.spec.freq as f32;
+        let wave_duty = s.nr11 >> 6;
+
+        println!("spec = {:?}", self.spec);
+        println!("s = {:?}", *s);
+        println!("freq = {} wave_duty = {} phase_inc = {} phase = {} samples = {}",
+                 freq, wave_duty, phase_inc, self.phase, self.spec.samples);
+
+        //if s.nr10 & 0b1110000 > 0 {
+        //    panic!("sweep {:?}", *s);
+        //}
+        //if s.nr12 & 0b111 > 0 {
+        //    println!("handling envelope");
+        //    if s.nr12 & 0b1000 > 0 {
+        //        if s.ch1_volume < 0xf {
+        //            s.ch1_volume += 1;
+        //        }
+        //    } else {
+        //        if s.ch1_volume > 0 {
+        //            s.ch1_volume -= 1;
+        //        }
+        //    }
+        //}
+
+        let phase_val = match wave_duty {
+            0b00 => 0.125,
+            0b01 => 0.250,
+            0b10 => 0.500,
+            0b11 => 0.750,
+            _ => panic!(),
+        };
+
+        println!("ch1 volume = {} {}", s.ch1_volume, s.ch1_volume as f32 / 15.0);
+
+        for x in out.iter_mut() {
+
+            *x += if self.phase >= phase_val {
+                (s.ch1_volume as f32 / 15.0)
+            } else {
+                -(s.ch1_volume as f32 / 15.0)
+            };
+
+            self.phase = (self.phase + phase_inc) % 1.0;
+        }
+    }
+
+
+    fn handle_channel2(&mut self, out: &mut [f32]) {
+        let mut s = self.sound.write().unwrap();
+
+        let freq_lo = s.nr23 as u32;
+        let freq_hi = s.nr24 as u32 & 0b111;
+        let freq = 131072 / (2048 - (freq_hi << 8 | freq_lo));
+        let phase_inc = freq as f32 / self.spec.freq as f32;
+        let wave_duty = s.nr21 >> 6;
+
+        println!("spec = {:?}", self.spec);
+        println!("s = {:?}", *s);
+        println!("freq = {} wave_duty = {} phase_inc = {} phase = {} samples = {}",
+                 freq, wave_duty, phase_inc, self.phase, self.spec.samples);
+
+        //if s.nr10 & 0b1110000 > 0 {
+        //    panic!("sweep {:?}", *s);
+        //}
+        //if s.nr12 & 0b111 > 0 {
+        //    println!("handling envelope");
+        //    if s.nr12 & 0b1000 > 0 {
+        //        self.volume += 0.01;
+        //    } else {
+        //        self.volume -= 0.01;
+        //    }
+        //}
+
+        //if s.nr22 & 0b111 > 0 {
+        //    println!("handling envelope");
+        //    if s.nr22 & 0b1000 > 0 {
+        //        if s.ch2_volume < 0xf {
+        //            s.ch2_volume += 1;
+        //        }
+        //    } else {
+        //        if s.ch2_volume > 0 {
+        //            s.ch2_volume -= 1;
+        //        }
+        //    }
+        //}
+
+        let phase_val = match wave_duty {
+            0b00 => 0.125,
+            0b01 => 0.250,
+            0b10 => 0.500,
+            0b11 => 0.750,
+            _ => panic!(),
+        };
+
+        for x in out.iter_mut() {
+
+            *x += if self.phase2 >= phase_val {
+                (s.ch2_volume as f32 / 15.0)
+            } else {
+                -(s.ch2_volume as f32 / 15.0)
+            };
+
+            self.phase2 = (self.phase2 + phase_inc) % 1.0;
+        }
+    }
+
+}
+
 impl Sound {
 
     pub fn new() -> Sound {
@@ -253,11 +284,16 @@ impl Sound {
             nr12 : 0,
             nr13 : 0,
             nr14 : 0,
-            ch1_length_remaining : 0,
+            ch1_length_cycles : 0,
+            ch1_volume : 0,
+            ch1_envelope_cycles : 0,
             nr21 : 0,
             nr22 : 0,
             nr23 : 0,
             nr24 : 0,
+            ch2_length_cycles : 0,
+            ch2_volume : 0,
+            ch2_envelope_cycles : 0,
             nr30 : 0,
             nr31 : 0,
             nr32 : 0,
@@ -274,48 +310,142 @@ impl Sound {
         }
     }
 
-    pub fn run(&mut self, mm: &mut mem::MemoryMap) {
+    pub fn run(&mut self, mm: &mut mem::MemoryMap, cycles: u32) {
         //println!("{:?}", self);
+
+        // channel 1 length
+        {
+            let n = (64 - (self.nr11 & 0x3f) as u32) * 16384; // 1/256 sec
+            if n > 0 && (self.nr14 & 0x40) > 0 {
+                self.ch1_length_cycles += cycles;
+                if self.ch1_length_cycles > n {
+                    println!("ch1 handling length");
+                    self.ch1_volume = 0;
+                }
+            }
+        }
+
+        // channel 2 length
+        {
+            let n = (64 - (self.nr21 & 0x3f) as u32) * 16384; // 1/256 sec
+            if n > 0 && (self.nr24 & 0x40) > 0 {
+                self.ch2_length_cycles += cycles;
+                if self.ch2_length_cycles > n {
+                    println!("ch2 handling length");
+                    self.ch2_volume = 0;
+                }
+            }
+        }
+
+        // channel 1 envelope
+        {
+            let n = (self.nr12 & 0b111) as u32 * 65536; // 1/64 sec
+            if n > 0 {
+                self.ch1_envelope_cycles += cycles;
+                if self.ch1_envelope_cycles > n {
+                    self.ch1_envelope_cycles -= n;
+                    println!("handling envelope");
+                    if self.nr12 & 0b1000 > 0 {
+                        if self.ch1_volume < 0xf {
+                            self.ch1_volume += 1;
+                        }
+                    } else {
+                        if self.ch1_volume > 0 {
+                            self.ch1_volume -= 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        // channel 2 envelope
+        {
+            let n = (self.nr22 & 0b111) as u32 * 65536; // 1/64 sec
+            if n > 0 {
+                self.ch2_envelope_cycles += cycles;
+                if self.ch2_envelope_cycles > n {
+                    self.ch2_envelope_cycles -= n;
+                    println!("handling envelope");
+                    if self.nr22 & 0b1000 > 0 {
+                        if self.ch2_volume < 0xf {
+                            self.ch2_volume += 1;
+                        }
+                    } else {
+                        if self.ch2_volume > 0 {
+                            self.ch2_volume -= 1;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     pub fn handle_addr(&mut self, addr: u16, write: bool, val: u8) -> u8 {
         println!("handling addr={:04x} write={} val={:02x}", addr, write, val);
         match addr {
+            // chanell 1
             0xff10 => { if write { self.nr10 = val; } self.nr10 }
             0xff11 => {
                 if write {
                     self.nr11 = val;
-                    self.ch1_length_remaining = val & 0x3f;
+                    self.ch1_length_cycles = 0;
                 }
                 self.nr11
             }
-            0xff12 => { if write { self.nr12 = val; } self.nr12 }
+            0xff12 => {
+                if write {
+                    self.nr12 = val;
+                    self.ch1_volume = (val & 0xf0) >> 4;
+                    self.ch1_envelope_cycles = 0;
+                    println!("setting ch1 volume = {:02x} {}", val, self.ch1_volume);
+                }
+                self.nr12
+            }
             0xff13 => { if write { self.nr13 = val; } self.nr13 }
             0xff14 => { if write { self.nr14 = val; } self.nr14 }
 
-
-            0xff16 => { if write { self.nr21 = val; } self.nr21 }
-            0xff17 => { if write { self.nr22 = val; } self.nr22 }
+            // channel 2
+            0xff16 => {
+                if write {
+                    self.nr21 = val;
+                    self.ch2_length_cycles = 0;
+                }
+                self.nr21
+            }
+            0xff17 => {
+                if write {
+                    self.nr22 = val;
+                    self.ch2_volume = (val & 0xf0) >> 4;
+                    self.ch2_envelope_cycles = 0;
+                    println!("setting ch2 volume = {:02x} {}", val, self.ch2_volume);
+                }
+                self.nr22
+            }
             0xff18 => { if write { self.nr23 = val; } self.nr23 }
             0xff19 => { if write { self.nr24 = val; } self.nr24 }
+
+            // channel 3
             0xff1a => { if write { self.nr30 = val; } self.nr30 }
             0xff1b => { if write { self.nr31 = val; } self.nr31 }
             0xff1c => { if write { self.nr32 = val; } self.nr32 }
             0xff1d => { if write { self.nr33 = val; } self.nr33 }
             0xff1e => { if write { self.nr34 = val; } self.nr34 }
+
+            // channel 4
             0xff20 => { if write { self.nr41 = val; } self.nr41 }
             0xff21 => { if write { self.nr42 = val; } self.nr42 }
             0xff22 => { if write { self.nr43 = val; } self.nr43 }
             0xff23 => { if write { self.nr44 = val; } self.nr44 }
+
+            // sound control
             0xff24 => { if write { self.nr50 = val; } self.nr50 }
             0xff25 => { if write { self.nr51 = val; } self.nr51 }
             0xff26 => { if write { self.nr52 = val; } self.nr52 }
 
             0xff30 ... 0xff3f => { if write { self.wave_ram[addr as usize - 0xff30 as usize] = val; } self.wave_ram[addr as usize - 0xff30 as usize] }
 
-
-
             _ => { 0 }
         }
     }
+
 }

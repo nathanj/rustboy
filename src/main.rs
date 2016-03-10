@@ -201,7 +201,7 @@ fn main() {
             //    panic!("asdf");
             //}
 
-            gb.sound.write().unwrap().run(&mut gb.mm);
+            gb.sound.write().unwrap().run(&mut gb.mm, cycles - prevcycles);
             gb.lcd.borrow().draw(&mut gb.mm, &mut pixels);
             texture.update(None, &pixels, pitch).unwrap();
             renderer.copy(&texture, None, None);
