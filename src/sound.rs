@@ -3,6 +3,7 @@ use std::fmt;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::RwLock;
+use std::vec::Vec;
 
 use sdl2::audio::AudioCallback;
 use sdl2::audio::AudioSpec;
@@ -40,6 +41,8 @@ pub struct Sound {
     pub nr34 : u8, // frequency higher data (r/w)
     pub wave_ram : [u8; 0x10],
 
+    ch3_counter : usize,
+
     // channel 4 - noise
     pub nr41 : u8, // sound length (r/w)
     pub nr42 : u8, // volume envelope (r/w)
@@ -59,70 +62,34 @@ pub struct SoundPlayer {
     pub x : u8,
     pub phase : f32,
     pub phase2 : f32,
+    pub phase3 : f32,
     pub sound : Arc<RwLock<Sound>>,
+    pub samples : Vec<u8>,
 }
 
 impl AudioCallback for SoundPlayer {
     type Channel = f32;
 
     fn callback(&mut self, out: &mut [f32]) {
+        for i in 0..self.spec.samples {
+            self.samples[i as usize] = 0;
+        }
+
         {
             let s = self.sound.read().unwrap();
-
-            for x in out.iter_mut() {
-                *x = 0.0;
-            }
-
-
-            /*
-
-            // channel 3
-
-            if s.nr30 & 0x80 == 0 || s.nr32 & 0b1100000 == 0 {
-            // sound off
-            for x in out.iter_mut() {
-             *x = 0.0;
-             }
-             }
-
-             let freq_lo = s.nr33 as u32;
-             let freq_hi = s.nr34 as u32 & 0b111;
-             let freq = 65536 / (2048 - (freq_hi << 8 | freq_lo));
-
-             println!("spec = {:?}", self.spec);
-             println!("s = {:?}", *s);
-             println!("freq = {}", freq);
-             println!("wave_ram = {:?}", s.wave_ram);
-
-             let volume_divisor = match s.nr32 & 0b1100000 >> 5 {
-             0 => { 1 }
-             1 => { 1 }
-             2 => { 2 }
-             3 => { 4 }
-             _ => { panic!() }
-             };
-
-             let mut mybuf : [f32; 32] = [0.0; 32];
-             for i in 0..16 {
-             mybuf[i * 2] = (s.wave_ram[i / 2] >> 4) as f32 / 16.0;
-             mybuf[i * 2 + 1] = (s.wave_ram[i / 2] & 0xF) as f32 / 16.0;
-             }
-
-             let mut wave_counter = 0;
-             for x in out.iter_mut() {
-             *x = mybuf[wave_counter];
-             wave_counter = (wave_counter + 1) % 32;
-             }
-
-*/
 
             if s.nr52 & 0x80 == 0 {
                 return;
             }
         }
 
-        self.handle_channel1(out);
-        self.handle_channel2(out);
+        self.handle_channel1();
+        self.handle_channel2();
+        self.handle_channel3();
+
+        for i in 0..self.spec.samples {
+            out[i as usize] = -1.0 + self.samples[i as usize] as f32 / 45.0;
+        }
     }
 }
 
@@ -161,7 +128,7 @@ impl fmt::Debug for Sound {
 
 impl SoundPlayer {
 
-    fn handle_channel1(&mut self, out: &mut [f32]) {
+    fn handle_channel1(&mut self) {
         let mut s = self.sound.write().unwrap();
 
         let freq_lo = s.nr13 as u32;
@@ -170,27 +137,6 @@ impl SoundPlayer {
         let phase_inc = freq as f32 / self.spec.freq as f32;
         let wave_duty = s.nr11 >> 6;
 
-        println!("spec = {:?}", self.spec);
-        println!("s = {:?}", *s);
-        println!("freq = {} wave_duty = {} phase_inc = {} phase = {} samples = {}",
-                 freq, wave_duty, phase_inc, self.phase, self.spec.samples);
-
-        //if s.nr10 & 0b1110000 > 0 {
-        //    panic!("sweep {:?}", *s);
-        //}
-        //if s.nr12 & 0b111 > 0 {
-        //    println!("handling envelope");
-        //    if s.nr12 & 0b1000 > 0 {
-        //        if s.ch1_volume < 0xf {
-        //            s.ch1_volume += 1;
-        //        }
-        //    } else {
-        //        if s.ch1_volume > 0 {
-        //            s.ch1_volume -= 1;
-        //        }
-        //    }
-        //}
-
         let phase_val = match wave_duty {
             0b00 => 0.125,
             0b01 => 0.250,
@@ -199,22 +145,16 @@ impl SoundPlayer {
             _ => panic!(),
         };
 
-        println!("ch1 volume = {} {}", s.ch1_volume, s.ch1_volume as f32 / 15.0);
-
-        for x in out.iter_mut() {
-
-            *x += if self.phase >= phase_val {
-                (s.ch1_volume as f32 / 15.0)
-            } else {
-                -(s.ch1_volume as f32 / 15.0)
-            };
-
+        for x in self.samples.iter_mut() {
+            if self.phase >= phase_val {
+                *x += s.ch1_volume;
+            }
             self.phase = (self.phase + phase_inc) % 1.0;
         }
     }
 
 
-    fn handle_channel2(&mut self, out: &mut [f32]) {
+    fn handle_channel2(&mut self) {
         let mut s = self.sound.write().unwrap();
 
         let freq_lo = s.nr23 as u32;
@@ -223,36 +163,6 @@ impl SoundPlayer {
         let phase_inc = freq as f32 / self.spec.freq as f32;
         let wave_duty = s.nr21 >> 6;
 
-        println!("spec = {:?}", self.spec);
-        println!("s = {:?}", *s);
-        println!("freq = {} wave_duty = {} phase_inc = {} phase = {} samples = {}",
-                 freq, wave_duty, phase_inc, self.phase, self.spec.samples);
-
-        //if s.nr10 & 0b1110000 > 0 {
-        //    panic!("sweep {:?}", *s);
-        //}
-        //if s.nr12 & 0b111 > 0 {
-        //    println!("handling envelope");
-        //    if s.nr12 & 0b1000 > 0 {
-        //        self.volume += 0.01;
-        //    } else {
-        //        self.volume -= 0.01;
-        //    }
-        //}
-
-        //if s.nr22 & 0b111 > 0 {
-        //    println!("handling envelope");
-        //    if s.nr22 & 0b1000 > 0 {
-        //        if s.ch2_volume < 0xf {
-        //            s.ch2_volume += 1;
-        //        }
-        //    } else {
-        //        if s.ch2_volume > 0 {
-        //            s.ch2_volume -= 1;
-        //        }
-        //    }
-        //}
-
         let phase_val = match wave_duty {
             0b00 => 0.125,
             0b01 => 0.250,
@@ -261,15 +171,48 @@ impl SoundPlayer {
             _ => panic!(),
         };
 
-        for x in out.iter_mut() {
-
-            *x += if self.phase2 >= phase_val {
-                (s.ch2_volume as f32 / 15.0)
-            } else {
-                -(s.ch2_volume as f32 / 15.0)
-            };
-
+        for x in self.samples.iter_mut() {
+            if self.phase2 >= phase_val {
+                *x += s.ch2_volume;
+            }
             self.phase2 = (self.phase2 + phase_inc) % 1.0;
+        }
+    }
+
+    fn handle_channel3(&mut self) {
+        let mut s = self.sound.write().unwrap();
+
+        if s.nr30 & 0x80 == 0 || s.nr32 & 0b1100000 == 0 {
+            return;
+        }
+
+        let freq_lo = s.nr33 as u32;
+        let freq_hi = s.nr34 as u32 & 0b111;
+        let freq = 65536 / (2048 - (freq_hi << 8 | freq_lo)) * 32;
+        let phase_inc = freq as f32 / self.spec.freq as f32;
+
+        let volume_divisor = match s.nr32 & 0b1100000 >> 5 {
+            0 => { 1 }
+            1 => { 1 }
+            2 => { 2 }
+            3 => { 4 }
+            _ => { panic!() }
+        };
+
+        for x in self.samples.iter_mut() {
+            let val = if s.ch3_counter % 2 == 0 {
+                s.wave_ram[s.ch3_counter / 2] >> 4
+            } else {
+                s.wave_ram[s.ch3_counter / 2] & 0xf
+            };
+            *x += val / volume_divisor;
+
+            self.phase3 += phase_inc;
+            if self.phase3 >= 1.0 {
+                self.phase3 -= 1.0;
+                s.ch3_counter += 1;
+                s.ch3_counter %= 32;
+            }
         }
     }
 
@@ -300,6 +243,7 @@ impl Sound {
             nr33 : 0,
             nr34 : 0,
             wave_ram : [0; 0x10],
+            ch3_counter : 0,
             nr41 : 0,
             nr42 : 0,
             nr43 : 0,

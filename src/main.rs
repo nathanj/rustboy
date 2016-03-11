@@ -16,6 +16,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::thread;
+use std::vec;
 use time::Duration;
 
 use sdl2::pixels::Color;
@@ -145,7 +146,9 @@ fn main() {
             x: 5,
             phase: 0.0,
             phase2: 0.0,
+            phase3: 0.0,
             sound: sound.clone(),
+            samples: vec![0; spec.samples as usize],
         }
     }).unwrap();
 
@@ -165,6 +168,7 @@ fn main() {
         let cycles = gb.cpu.run(&mut gb.mm);
         gb.lcd.borrow_mut().run(&mut gb.mm, cycles - prevcycles);
         gb.timer.borrow_mut().run(&mut gb.mm, cycles - prevcycles);
+        gb.sound.write().unwrap().run(&mut gb.mm, cycles - prevcycles);
 
         drawcycles += cycles - prevcycles;
         if drawcycles > 70224 {
@@ -201,7 +205,6 @@ fn main() {
             //    panic!("asdf");
             //}
 
-            gb.sound.write().unwrap().run(&mut gb.mm, cycles - prevcycles);
             gb.lcd.borrow().draw(&mut gb.mm, &mut pixels);
             texture.update(None, &pixels, pitch).unwrap();
             renderer.copy(&texture, None, None);
@@ -213,8 +216,8 @@ fn main() {
             //println!("ms={}", delta.num_milliseconds());
 
             //if cycles > 330_000_000 {
-            if delta.num_milliseconds() < 16 {
-                thread::sleep_ms(16 - delta.num_milliseconds() as u32);
+            if delta.num_milliseconds() < 17 {
+                thread::sleep_ms(17 - delta.num_milliseconds() as u32);
             }
             //}
 
