@@ -34,27 +34,6 @@ mod mem;
 mod joypad;
 mod sound;
 
-struct SquareWave {
-    phase_inc: f32,
-    phase: f32,
-    volume: f32,
-}
-
-impl AudioCallback for SquareWave {
-    type Channel = f32;
-
-    fn callback(&mut self, out: &mut [f32]) {
-        // Generate a square wave
-        for x in out.iter_mut() {
-            *x = match self.phase {
-                0.0 ... 0.5 => self.volume,
-                _ => -self.volume,
-            };
-            self.phase = (self.phase + self.phase_inc) % 1.0;
-        }
-    }
-}
-
 struct Gameboy {
     cpu: cpu::Cpu,
     mm: mem::MemoryMap,
@@ -62,8 +41,6 @@ struct Gameboy {
     timer : Rc<RefCell<timer::Timer>>,
     joypad : Rc<RefCell<joypad::Joypad>>,
     sound : Arc<RwLock<sound::Sound>>,
-    //vram: [u8; 0x2000],
-    //eram: [u8; 0x2000],
 }
 
 fn main() {
@@ -80,42 +57,37 @@ fn main() {
 
 
 
-    let audio_subsystem = sdl_context.audio().unwrap();
-    let desired_spec = AudioSpecDesired {
-        freq: Some(44100),
-        channels: Some(1),
-        samples: None,
-    };
-
-
+    // Initialize the video.
     let video_subsystem = sdl_context.video().unwrap();
-
-
     let window = video_subsystem.window("rust-sdl2 demo: Video", 160*1, 144*1)
         .position_centered()
         .opengl()
         .build()
         .unwrap();
-
     let mut renderer = window.renderer().build().unwrap();
-
     let mut texture = renderer.create_texture_streaming(PixelFormatEnum::RGB332, (160, 144)).unwrap();
     let mut pixels: [u8; 160*144] = [0; 160*144];
-
     let pitch = 160;
+    texture.update(None, &pixels, pitch).unwrap();
+    renderer.copy(&texture, None, None);
+    renderer.present();
 
+
+    // Initialize the emulator.
     let cpu = cpu::Cpu::new();
-    let vram : [u8; 0x2000] = [0; 0x2000];
-    let wram : [u8; 0x2000] = [0; 0x2000];
-    let hram : [u8; 0x80] = [0; 0x80];
-    let iobuf : [u8; 0x100] = [0; 0x100];
     let lcd = Rc::new(RefCell::new(lcd::Lcd::new()));
     let timer = Rc::new(RefCell::new(timer::Timer::new()));
     let joypad = Rc::new(RefCell::new(joypad::Joypad::new()));
     let sound = Arc::new(RwLock::new(sound::Sound::new()));
-    let mm = mem::MemoryMap { rom: rom, vram: vram, wram: wram, hram: hram,
-        iobuf: iobuf,
-        interrupt_enable: 0, interrupt_master_enable: false, interrupt_flag: 0,
+    let mm = mem::MemoryMap {
+        rom: rom,
+        vram: [0; 0x2000],
+        wram: [0; 0x2000],
+        hram: [0; 0x80],
+        iobuf: [0; 0x100],
+        interrupt_enable: 0,
+        interrupt_master_enable: false,
+        interrupt_flag: 0,
         oam: [0; 0xa0],
         lcd: lcd.clone(),
         timer: timer.clone(),
@@ -131,13 +103,15 @@ fn main() {
         sound: sound.clone(),
     };
 
-    texture.update(None, &pixels, pitch).unwrap();
-    renderer.copy(&texture, None, None);
-    renderer.present();
-
-    let mut event_pump = sdl_context.event_pump().unwrap();
 
 
+    // Initialize the audio.
+    let audio_subsystem = sdl_context.audio().unwrap();
+    let desired_spec = AudioSpecDesired {
+        freq: Some(44100),
+        channels: Some(1),
+        samples: None,
+    };
     let device = audio_subsystem.open_playback(None, desired_spec, |spec| {
         println!("spec = {:?}", spec);
         sound::SoundPlayer {
@@ -151,7 +125,6 @@ fn main() {
             samples: vec![0; spec.samples as usize],
         }
     }).unwrap();
-
     device.resume();
 
 
@@ -159,12 +132,12 @@ fn main() {
     let mut prevcycles = 0u32;
     let mut drawcycles = 0u32;
     let mut start = time::now();
+    let mut event_pump = sdl_context.event_pump().unwrap();
     'running: loop {
         if prevcycles % 1000000 < 10 {
             println!("cycles={}", prevcycles);
         }
 
-        // The rest of the game loop goes here...
         let cycles = gb.cpu.run(&mut gb.mm);
         gb.lcd.borrow_mut().run(&mut gb.mm, cycles - prevcycles);
         gb.timer.borrow_mut().run(&mut gb.mm, cycles - prevcycles);
@@ -195,16 +168,6 @@ fn main() {
                 }
             }
 
-            //gb.cpu.tracing = true;
-
-            //if cycles > 58_000_000 {
-            //    gb.cpu.tracing = true;
-            //}
-
-            //if cycles > 360_000_000 {
-            //    panic!("asdf");
-            //}
-
             gb.lcd.borrow().draw(&mut gb.mm, &mut pixels);
             texture.update(None, &pixels, pitch).unwrap();
             renderer.copy(&texture, None, None);
@@ -215,13 +178,9 @@ fn main() {
             start = end;
             //println!("ms={}", delta.num_milliseconds());
 
-            //if cycles > 330_000_000 {
             if delta.num_milliseconds() < 17 {
                 thread::sleep_ms(17 - delta.num_milliseconds() as u32);
             }
-            //}
-
-            //break 'running;
         }
 
         prevcycles = cycles;

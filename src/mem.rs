@@ -26,13 +26,9 @@ pub struct MemoryMap {
 
 impl MemoryMap {
     fn perform_dma(&mut self, val: u8) {
-        //println!("performing dma");
         for i in 0..0xa0 {
             let val = self.read(val as u16 * 0x100 + i);
             self.oam[i as usize] = val;
-            if i >= 0x15 && i <= 0x20{
-                //println!("writing oam {:04x} = {:02x}", 0xfe00 + i, val);
-            }
         }
     }
 
@@ -80,9 +76,6 @@ impl MemoryMap {
     }
 
     fn handle_addr(&mut self, addr: u16, write: bool, val: u8) -> u8 {
-        if addr == 0xdfe9 || addr == 0xdfe8 {
-            //println!("NJ handling addr={:04x} {} {}", addr, write, val);
-        }
         match addr {
             // rom bank 0
             0 ... 0x3fff => {
@@ -108,9 +101,6 @@ impl MemoryMap {
             // wram
             0xc000 ... 0xdfff => {
                 if write {
-                    if addr == 0xc019 {
-                        println!("writing {:04x} = {:02x}", addr, val);
-                    }
                     self.wram[addr as usize - 0xc000] = val;
                 }
                 self.wram[addr as usize - 0xc000]
@@ -125,7 +115,6 @@ impl MemoryMap {
             // oam
             0xfe00 ... 0xfe9f => {
                 if write {
-                    trace!("writing oam {:04x} = {:02x}", addr, val);
                     self.oam[addr as usize - 0xfe00] = val;
                 }
                 self.oam[addr as usize - 0xfe00]
@@ -142,9 +131,6 @@ impl MemoryMap {
             // hram
             0xff80 ... 0xfffe => {
                 if write {
-                    if addr == 0xffe1 && val == 0 {
-                        self.dump(0x8000, 0xfff0 - 0x8000);
-                    }
                     self.hram[addr as usize - 0xff80] = val;
                 }
                 self.hram[addr as usize - 0xff80]
@@ -184,24 +170,6 @@ impl MemoryMap {
                      self.read(start + x * 16 + 13),
                      self.read(start + x * 16 + 14),
                      self.read(start + x * 16 + 15));
-        }
-    }
-
-    pub fn dump_oam(&self) {
-        for x in 0..20 {
-            println!("{:02x}: {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x}",
-                     0xfe00 + x * 8,
-                     self.oam[x*8+0], self.oam[x*8+1], self.oam[x*8+2], self.oam[x*8+3],
-                     self.oam[x*8+4], self.oam[x*8+5], self.oam[x*8+6], self.oam[x*8+7]);
-        }
-    }
-
-    pub fn dump_hram(&self) {
-        for x in 0..0x10 {
-            trace!("{:02x}: {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x}",
-                   0xff80 + x * 8,
-                   self.hram[x*8+0], self.hram[x*8+1], self.hram[x*8+2], self.hram[x*8+3],
-                   self.hram[x*8+4], self.hram[x*8+5], self.hram[x*8+6], self.hram[x*8+7]);
         }
     }
 

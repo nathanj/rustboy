@@ -76,7 +76,6 @@ impl Lcd {
         if x < 0 || y < 0 {
             return;
         }
-        let c = 0u8;
         if color == 0 && oam {
             // for sprites color 0 is transparent
             return;
@@ -187,11 +186,7 @@ impl Lcd {
             let tile  = mm.read(0xfe00 + i*4 + 2);
             let flags = mm.read(0xfe00 + i*4 + 3);
 
-            if y > 0 {
-                //println!("lcd i={} y={} x={} tile={} flags={:02x}", i, y, x, tile, flags);
-            }
-
-            if !(y > 0 && y < 160) {
+            if y >= 160 {
                 continue;
             }
 
