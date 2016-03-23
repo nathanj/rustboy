@@ -22,6 +22,7 @@ pub struct MemoryMap {
     pub timer : Rc<RefCell<timer::Timer>>,
     pub joypad : Rc<RefCell<joypad::Joypad>>,
     pub sound : Arc<RwLock<sound::Sound>>,
+    pub rom_bank: u8,
 }
 
 impl MemoryMap {
@@ -78,18 +79,31 @@ impl MemoryMap {
     fn handle_addr(&mut self, addr: u16, write: bool, val: u8) -> u8 {
         match addr {
             // rom bank 0
-            0 ... 0x3fff => {
+            0 ... 0x1fff => {
                 if write {
-                    trace!("bad write at {:04x}", addr);
+                    println!("ram enable {:02x}", val);
+                }
+                self.rom[addr as usize]
+            },
+            0x2000 ... 0x3fff => {
+                if write {
+                    println!("rom bank number {:02x}", val);
+                    self.rom_bank = val;
                 }
                 self.rom[addr as usize]
             },
             // rom bank n
-            0x4000 ... 0x7fff => {
+            0x4000 ... 0x5fff => {
                 if write {
-                    trace!("bad write at {:04x}", addr);
+                    println!("ram bank number {:02x}", val);
                 }
-                self.rom[addr as usize]
+                self.rom[self.rom_bank as usize * 0x4000 + (addr - 0x4000) as usize]
+            },
+            0x6000 ... 0x7fff => {
+                if write {
+                    println!("rom/ram mode select {:02x}", val);
+                }
+                self.rom[self.rom_bank as usize * 0x4000 + (addr - 0x4000) as usize]
             },
             // vram
             0x8000 ... 0x9fff => {

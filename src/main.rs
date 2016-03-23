@@ -93,6 +93,7 @@ fn main() {
         timer: timer.clone(),
         joypad: joypad.clone(),
         sound: sound.clone(),
+        rom_bank: 0,
     };
     let mut gb = Gameboy {
         cpu: cpu,
