@@ -23,6 +23,7 @@ pub struct Cpu {
     sp: u16,
     cycles: u32,
     pub tracing: bool,
+    halt: bool,
 }
 
 impl fmt::Debug for Cpu {
@@ -74,6 +75,7 @@ impl Cpu {
             pc: 0x100,
             cycles: 0,
             tracing: false,
+            halt: false,
         }
     }
 
@@ -699,11 +701,47 @@ impl Cpu {
         return cycles
     }
 
+    fn service_interrupt(&mut self, mm: &mut mem::MemoryMap, addr: u16) {
+        self.halt = false;
+        let pc = self.pc;
+        self.stack_write_u16(mm, pc);
+        self.pc = addr;
+    }
+
+    fn service_interrupts(&mut self, mm: &mut mem::MemoryMap) {
+        if mm.interrupt_triggered(interrupt::INTERRUPT_VBLANK) {
+            my_log!(self,"interrupt vblank");
+            self.service_interrupt(mm, 0x40);
+        }
+        if mm.interrupt_triggered(interrupt::INTERRUPT_LCD_STAT) {
+            my_log!(self,"interrupt lcd stat");
+            self.service_interrupt(mm, 0x48);
+        }
+        if mm.interrupt_triggered(interrupt::INTERRUPT_TIMER) {
+            my_log!(self,"interrupt timer");
+            self.service_interrupt(mm, 0x50);
+        }
+        if mm.interrupt_triggered(interrupt::INTERRUPT_SERIAL) {
+            my_log!(self,"interrupt serial");
+            self.service_interrupt(mm, 0x58);
+        }
+        if mm.interrupt_triggered(interrupt::INTERRUPT_JOYPAD) {
+            my_log!(self,"interrupt joypad");
+            self.service_interrupt(mm, 0x60);
+        }
+    }
+
     pub fn run(&mut self, mm: &mut mem::MemoryMap) -> u32 {
         let mut pc = self.pc;
         if self.tracing {
             print!("{:?} ", self);
         }
+        if self.halt {
+            self.cycles += 16;
+            self.service_interrupts(mm);
+            return self.cycles;
+        }
+
         match mm.read(pc) {
             0x00 => {
                 my_log!(self,"nop");
@@ -1512,7 +1550,8 @@ impl Cpu {
                 pc += 1;
             },
             0x76 => {
-                panic!("halt");
+                self.halt = true;
+                pc += 1;
             },
             0x77 => {
                 my_log!(self,"ld (hl), a");
@@ -2453,36 +2492,8 @@ impl Cpu {
             _ => panic!("unknown instruction {:02x} @ pc={:04x}", mm.read(pc), pc),
         }
 
-        if mm.interrupt_triggered(interrupt::INTERRUPT_VBLANK) {
-            my_log!(self,"interrupt vblank");
-            if self.tracing {
-            mm.dump(0xc000, 0xffff - 0xc000 + 1);
-            }
-            self.stack_write_u16(mm, pc);
-            pc = 0x40;
-        }
-        if mm.interrupt_triggered(interrupt::INTERRUPT_LCD_STAT) {
-            panic!("interrupt lcd stat");
-            self.stack_write_u16(mm, pc);
-            pc = 0x48;
-        }
-        if mm.interrupt_triggered(interrupt::INTERRUPT_TIMER) {
-            panic!("interrupt timer");
-            self.stack_write_u16(mm, pc);
-            pc = 0x50;
-        }
-        if mm.interrupt_triggered(interrupt::INTERRUPT_SERIAL) {
-            panic!("interrupt serial");
-            self.stack_write_u16(mm, pc);
-            pc = 0x58;
-        }
-        if mm.interrupt_triggered(interrupt::INTERRUPT_JOYPAD) {
-            panic!("interrupt joypad");
-            self.stack_write_u16(mm, pc);
-            pc = 0x60;
-        }
-
         self.pc = pc;
+        self.service_interrupts(mm);
         return self.cycles;
     }
 }
