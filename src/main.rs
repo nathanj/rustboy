@@ -131,7 +131,6 @@ fn main() {
 
 
     let mut prevcycles = 0u32;
-    let mut drawcycles = 0u32;
     let mut start = time::now();
     let mut event_pump = sdl_context.event_pump().unwrap();
     let mut fastforward = false;
@@ -141,14 +140,11 @@ fn main() {
         }
 
         let cycles = gb.cpu.run(&mut gb.mm);
-        gb.lcd.borrow_mut().run(&mut gb.mm, cycles - prevcycles);
+        let vblank = gb.lcd.borrow_mut().run(&mut gb.mm, cycles - prevcycles, &mut pixels);
         gb.timer.borrow_mut().run(&mut gb.mm, cycles - prevcycles);
         gb.sound.write().unwrap().run(&mut gb.mm, cycles - prevcycles);
 
-        drawcycles += cycles - prevcycles;
-        if drawcycles > 70224 {
-            drawcycles -= 70224;
-
+        if vblank {
             for event in event_pump.poll_iter() {
                 match event {
                     Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
@@ -161,10 +157,13 @@ fn main() {
                         fastforward = false;
                     }
                     Event::KeyDown { keycode: Some(Keycode::D), .. } => {
-                        gb.cpu.tracing = true;
+                        //gb.cpu.tracing = true;
+                        println!("{:?}", gb.lcd.borrow());
+                        gb.mm.dump(0x8000, 0xa000 - 0x8000);
+                        panic!("asdf");
                     }
                     Event::KeyUp { keycode: Some(Keycode::D), .. } => {
-                        gb.cpu.tracing = false;
+                        //gb.cpu.tracing = false;
                     }
                     Event::KeyDown { keycode: Some(keycode), .. } => {
                         joypad.borrow_mut().handle_input(&mut gb.mm, keycode, true);
@@ -176,7 +175,7 @@ fn main() {
                 }
             }
 
-            gb.lcd.borrow().draw(&mut gb.mm, &mut pixels);
+            //gb.lcd.borrow().draw(&mut gb.mm, &mut pixels);
             texture.update(None, &pixels, pitch).unwrap();
             renderer.copy(&texture, None, None);
             renderer.present();

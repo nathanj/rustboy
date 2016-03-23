@@ -73,7 +73,10 @@ impl Lcd {
                  mm: &mut mem::MemoryMap,
                  pixels: &mut [u8; 160*144], x: i32, y: i32,
                  color: u8, oam: bool) {
-        if x < 0 || y < 0 {
+        if x < 0 || y < 0 || y >= 144 || x >= 160 {
+            return;
+        }
+        if y != self.ly as i32 {
             return;
         }
         if color == 0 && oam {
@@ -95,17 +98,12 @@ impl Lcd {
                  tile_start_addr: u16,
                  palette: [u8; 4], oam_flags: u8, oam: bool) {
         for j in 0..8 {
-            let h = mm.read(j*2 + tile_start_addr); // XXX
-            let l = mm.read(j*2 + tile_start_addr + 1);
+            let l = mm.read(j*2 + tile_start_addr);
+            let h = mm.read(j*2 + tile_start_addr + 1);
             for k in 0..8 {
                 let p = (((h & (1<<k)) >> k) << 1) | ((l & (1<<k)) >> k);
                 let xpos = if oam_flags & OAM_X_FLIP > 0 { x + k as i32 } else { x + 7 - k as i32 };
                 let ypos = if oam_flags & OAM_Y_FLIP > 0 { y + 7 - j as i32 } else { y + j as i32 };
-                if ypos >= 144 || xpos >= 160 {
-                    mm.dump(0x8000, 0xffff-0x8000);
-                    panic!("ctl = {:02x}, y = {} {}, x = {} {}, flags = {:02x}, k = {}, j = {}, tile_start_addr = {:04x}",
-                           self.ctl, ypos, y, xpos, x, oam_flags, k, j, tile_start_addr);
-                }
                 self.put_pixel(mm, pixels, xpos, ypos, palette[p as usize], oam);
             }
         }
@@ -129,7 +127,7 @@ impl Lcd {
     }
 
     fn get_tile_map_addr(&self) -> u16 {
-        if self.ctl & LCD_CTL_BG_TILE_MAP_DISPLAY_SELECT > 0 {
+        if (self.ctl & LCD_CTL_BG_TILE_MAP_DISPLAY_SELECT) > 0 {
             0x9c00
         } else {
             0x9800
@@ -137,36 +135,45 @@ impl Lcd {
     }
 
     fn get_tile_start_addr(&self, tile: u8) -> u16 {
-        if self.ctl & LCD_CTL_BG_WINDOW_TILE_DATA_SELECT > 0 {
+        if (self.ctl & LCD_CTL_BG_WINDOW_TILE_DATA_SELECT) > 0 {
             0x8000 + tile as u16 * 16
         } else {
-            0x9000u16.wrapping_add((tile as i8 * 16) as u16)
+            0x9000u16.wrapping_add(((tile as i8) as i16 * 16) as u16)
         }
     }
 
     fn draw_bg(&self, mm: &mut mem::MemoryMap, pixels: &mut [u8; 160*144]) {
         let palette : [u8; 4] = [
-            self.bgp & 0x03,
+            (self.bgp & 0x03),
             (self.bgp & 0x0c) >> 2,
             (self.bgp & 0x30) >> 4,
             (self.bgp & 0xc0) >> 6,
             ];
 
+        //println!("ly={} palette={:?}", self.ly, palette);
+
+        //println!("ctl={:02x} scx={} scy={}", self.ctl, self.scx, self.scy);
         if self.ctl & LCD_CTL_BG_DISPLAY == 0 {
             return;
         }
 
         let tile_map_addr = self.get_tile_map_addr();
+        //println!("ly={} palette={:?} addr={:04x} tile_start={:04x}", self.ly, palette, tile_map_addr, self.get_tile_start_addr(0));
 
-        for j in 0..18 {
-            for i in 0..20 {
-                let tile_pos_y : u16 = ((j + self.scy / 8) % 32) as u16;
-                let tile_pos_x : u16 = ((i + self.scx / 8) % 32) as u16;
-                let tile = mm.read(tile_map_addr + tile_pos_y * 32 + tile_pos_x);
+        for j in 0..19 {
+            for i in 0..21 {
+                let tile_pos_x = ((i + self.scx / 8) % 32) as u16;
+                let tile_pos_y = ((j + self.scy / 8) % 32) as u16;
+                let myaddr = tile_map_addr + tile_pos_y * 32 + tile_pos_x;
+                let tile = mm.read(myaddr);
                 let tile_start_addr = self.get_tile_start_addr(tile);
-                let x = (i * 8 - self.scx % 8) as usize;
-                let y = (j * 8 - self.scy % 8) as usize;
-                self.draw_tile(mm, pixels, x as i32, y as i32, tile_start_addr, palette, 0, false);
+                let x = i as i32 * 8 - (self.scx % 8) as i32;
+                let y = j as i32 * 8 - (self.scy % 8) as i32;
+                if self.ly as i32 >= y && self.ly as i32 <= y + 8 {
+                        //println!("tile_pos_x={:02x} tile_pos_y={:02x} tile={:02x} tile_start_addr={:04x} x={} y={} myaddr={:04x}",
+                        //         tile_pos_x, tile_pos_y, tile, tile_start_addr, x, y, myaddr);
+                    self.draw_tile(mm, pixels, x as i32, y as i32, tile_start_addr, palette, 0, false);
+                }
             }
         }
     }
@@ -179,7 +186,27 @@ impl Lcd {
         println!("should display window\n");
     }
 
+    fn draw_oam_tile(&self, mm: &mut mem::MemoryMap, pixels: &mut [u8; 160*144], x: u8, y: u8, tile: u8, flags: u8) {
+        let tile_start_addr = 0x8000 + tile as u16 * 16;
+        let obp = if flags & OAM_PALETTE_NUMBER > 0 {
+            self.obp1
+        } else {
+            self.obp0
+        };
+        let palette : [u8; 4] = [
+            (obp & 0x03),
+            (obp & 0x0c) >> 2,
+            (obp & 0x30) >> 4,
+            (obp & 0xc0) >> 6,
+        ];
+        if self.ly as i32 >= y as i32 - 16 && self.ly as i32 <= y as i32 - 8 {
+            self.draw_tile(mm, pixels, x as i32 - 8, y as i32 - 16, tile_start_addr, palette, flags, true);
+        }
+    }
+
     fn draw_oam(&self, mm: &mut mem::MemoryMap, pixels: &mut [u8; 160*144]) {
+        let is_8x8 = (self.ctl & LCD_CTL_OBJ_SIZE) == 0;
+
         for i in 0..40 {
             let y     = mm.read(0xfe00 + i*4 + 0);
             let x     = mm.read(0xfe00 + i*4 + 1);
@@ -190,27 +217,17 @@ impl Lcd {
                 continue;
             }
 
-            let tile_start_addr = 0x8000 + tile as u16 * 16;
-
-            let obp = if flags & OAM_PALETTE_NUMBER > 0 {
-                self.obp1
+            if is_8x8 {
+                self.draw_oam_tile(mm, pixels, x, y, tile, flags);
             } else {
-                self.obp0
-            };
-
-            let palette : [u8; 4] = [
-                (obp & 0x03),
-                (obp & 0x0c) >> 2,
-                (obp & 0x30) >> 4,
-                (obp & 0xc0) >> 6,
-                ];
-
-            self.draw_tile(mm, pixels, x as i32 - 8, y as i32 - 16, tile_start_addr, palette, flags, true);
+                self.draw_oam_tile(mm, pixels, x, y,     tile & 0xfe, flags);
+                self.draw_oam_tile(mm, pixels, x, y + 8, tile | 0x01, flags);
+            }
         }
     }
 
     pub fn draw(&self, mm: &mut mem::MemoryMap, pixels: &mut [u8; 160*144]) {
-        if self.ctl & LCD_CTL_ENABLE == 0 {
+        if (self.ctl & LCD_CTL_ENABLE) == 0 {
             return;
         }
 
@@ -219,8 +236,10 @@ impl Lcd {
         self.draw_oam(mm, pixels);
     }
 
-    pub fn run(&mut self, mm: &mut mem::MemoryMap, cycles: u32) {
-        //trace!("{:?}", self);
+    pub fn run(&mut self, mm: &mut mem::MemoryMap, cycles: u32, pixels: &mut [u8; 160*144]) -> bool {
+        //println!("{:?}", self);
+        let prev_ly = self.ly;
+        let mut vblank = false;
         self.cycles += cycles;
         match self.stat & LCD_STATUS_MODE {
             0 => {
@@ -249,6 +268,7 @@ impl Lcd {
                         mm.interrupt_flag |= interrupt::INTERRUPT_LCD_STAT;
                     }
                     if self.ly >= 144 {
+                        vblank = true;
                         if self.interrupt_enabled(LCD_STATUS_MODE_1_VBLANK_INTERRUPT, mm) {
                             mm.interrupt_flag |= interrupt::INTERRUPT_LCD_STAT;
                         }
@@ -282,6 +302,12 @@ impl Lcd {
                 panic!("bad lcd status {}", self.stat & LCD_STATUS_MODE);
             },
         }
+
+        if prev_ly != self.ly {
+            // draw new scanline
+            self.draw(mm, pixels);
+        }
+        return vblank;
     }
 }
 
