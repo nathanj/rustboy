@@ -9,8 +9,6 @@ TODO
 ----
 
   * Window display
-  * Rom bank switching
   * ERAM saving/loading
-  * All interrupts
   * Sound channel 4
   * Sound channel 1 sweep
