@@ -134,6 +134,7 @@ fn main() {
     let mut drawcycles = 0u32;
     let mut start = time::now();
     let mut event_pump = sdl_context.event_pump().unwrap();
+    let mut fastforward = false;
     'running: loop {
         if prevcycles % 1000000 < 10 {
             println!("cycles={}", prevcycles);
@@ -153,6 +154,12 @@ fn main() {
                     Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
                         break 'running
                     },
+                    Event::KeyDown { keycode: Some(Keycode::F), .. } => {
+                        fastforward = true;
+                    }
+                    Event::KeyUp { keycode: Some(Keycode::F), .. } => {
+                        fastforward = false;
+                    }
                     Event::KeyDown { keycode: Some(Keycode::D), .. } => {
                         gb.cpu.tracing = true;
                     }
@@ -179,7 +186,7 @@ fn main() {
             start = end;
             //println!("ms={}", delta.num_milliseconds());
 
-            if delta.num_milliseconds() < 17 {
+            if !fastforward && delta.num_milliseconds() < 17 {
                 thread::sleep_ms(17 - delta.num_milliseconds() as u32);
             }
         }
