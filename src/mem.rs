@@ -2,6 +2,9 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::RwLock;
+use std::io::prelude::*;
+use std::io;
+use std::fs::File;
 
 use lcd;
 use timer;
@@ -13,6 +16,7 @@ pub struct MemoryMap {
     pub vram: [u8; 0x2000],
     pub wram: [u8; 0x2000],
     pub hram: [u8; 0x80],
+    pub eram: [u8; 0x2000],
     pub iobuf: [u8; 0x100],
     pub oam: [u8; 0xa0],
     pub interrupt_enable : u8,
@@ -81,7 +85,7 @@ impl MemoryMap {
             // rom bank 0
             0 ... 0x1fff => {
                 if write {
-                    println!("ram enable {:02x}", val);
+                    println!("eram enable {:02x}", val);
                 }
                 self.rom[addr as usize]
             },
@@ -95,7 +99,7 @@ impl MemoryMap {
             // rom bank n
             0x4000 ... 0x5fff => {
                 if write {
-                    println!("ram bank number {:02x}", val);
+                    println!("eram bank number {:02x}", val);
                 }
                 self.rom[self.rom_bank as usize * 0x4000 + (addr - 0x4000) as usize]
             },
@@ -111,6 +115,13 @@ impl MemoryMap {
                     self.vram[addr as usize - 0x8000] = val;
                 }
                 self.vram[addr as usize - 0x8000]
+            },
+            // eram
+            0xa000 ... 0xbfff => {
+                if write {
+                    self.eram[addr as usize - 0xa000] = val;
+                }
+                self.eram[addr as usize - 0xa000]
             },
             // wram
             0xc000 ... 0xdfff => {
@@ -230,5 +241,17 @@ impl MemoryMap {
             self.interrupt_flag &= !interrupt;
         }
         return triggered;
+    }
+
+    pub fn load_eram(&mut self) -> Result<(), io::Error> {
+        let mut f = try!(File::open("eram"));
+        try!(f.read_exact(&mut self.eram));
+        Ok(())
+    }
+
+    pub fn save_eram(&mut self) -> Result<(), io::Error> {
+        let mut f = try!(File::create("eram"));
+        try!(f.write_all(&self.eram));
+        Ok(())
     }
 }

@@ -84,6 +84,7 @@ fn main() {
         vram: [0; 0x2000],
         wram: [0; 0x2000],
         hram: [0; 0x80],
+        eram: [0; 0x2000],
         iobuf: [0; 0x100],
         interrupt_enable: 0,
         interrupt_master_enable: false,
@@ -128,6 +129,7 @@ fn main() {
     }).unwrap();
     device.resume();
 
+    gb.mm.load_eram();
 
 
     let mut prevcycles = 0u32;
@@ -148,6 +150,7 @@ fn main() {
             for event in event_pump.poll_iter() {
                 match event {
                     Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                        gb.mm.save_eram();
                         break 'running
                     },
                     Event::KeyDown { keycode: Some(Keycode::F), .. } => {
