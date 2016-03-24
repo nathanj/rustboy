@@ -75,6 +75,12 @@ impl Joypad {
             Keycode::X => { self.a = pressed; }
             Keycode::A => { self.select = pressed; }
             Keycode::S => { self.start = pressed; }
+            Keycode::B => {
+                self.start = pressed;
+                self.b = pressed;
+                self.a = pressed;
+                self.select = pressed;
+            }
             _ => {}
         }
 
