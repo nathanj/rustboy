@@ -64,7 +64,7 @@ impl Joypad {
     }
 
     pub fn handle_input(&mut self, mm: &mut mem::MemoryMap, keycode: Keycode, pressed: bool) {
-        println!("keycode={} pressed={}", keycode, pressed);
+        //println!("keycode={} pressed={}", keycode, pressed);
 
         match keycode {
             Keycode::Up => { self.up = pressed; }

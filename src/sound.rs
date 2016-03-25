@@ -263,7 +263,7 @@ impl Sound {
             if n > 0 && (self.nr14 & 0x40) > 0 {
                 self.ch1_length_cycles += cycles;
                 if self.ch1_length_cycles > n {
-                    println!("ch1 handling length");
+                    //println!("ch1 handling length");
                     self.ch1_volume = 0;
                 }
             }
@@ -275,7 +275,7 @@ impl Sound {
             if n > 0 && (self.nr24 & 0x40) > 0 {
                 self.ch2_length_cycles += cycles;
                 if self.ch2_length_cycles > n {
-                    println!("ch2 handling length");
+                    //println!("ch2 handling length");
                     self.ch2_volume = 0;
                 }
             }
@@ -288,7 +288,7 @@ impl Sound {
                 self.ch1_envelope_cycles += cycles;
                 if self.ch1_envelope_cycles > n {
                     self.ch1_envelope_cycles -= n;
-                    println!("handling envelope");
+                    //println!("handling envelope");
                     if self.nr12 & 0b1000 > 0 {
                         if self.ch1_volume < 0xf {
                             self.ch1_volume += 1;
@@ -309,7 +309,7 @@ impl Sound {
                 self.ch2_envelope_cycles += cycles;
                 if self.ch2_envelope_cycles > n {
                     self.ch2_envelope_cycles -= n;
-                    println!("handling envelope");
+                    //println!("handling envelope");
                     if self.nr22 & 0b1000 > 0 {
                         if self.ch2_volume < 0xf {
                             self.ch2_volume += 1;
@@ -325,7 +325,7 @@ impl Sound {
     }
 
     pub fn handle_addr(&mut self, addr: u16, write: bool, val: u8) -> u8 {
-        println!("handling addr={:04x} write={} val={:02x}", addr, write, val);
+        //println!("handling addr={:04x} write={} val={:02x}", addr, write, val);
         match addr {
             // chanell 1
             0xff10 => { if write { self.nr10 = val; } self.nr10 }
@@ -341,7 +341,7 @@ impl Sound {
                     self.nr12 = val;
                     self.ch1_volume = (val & 0xf0) >> 4;
                     self.ch1_envelope_cycles = 0;
-                    println!("setting ch1 volume = {:02x} {}", val, self.ch1_volume);
+                    //println!("setting ch1 volume = {:02x} {}", val, self.ch1_volume);
                 }
                 self.nr12
             }
@@ -361,7 +361,7 @@ impl Sound {
                     self.nr22 = val;
                     self.ch2_volume = (val & 0xf0) >> 4;
                     self.ch2_envelope_cycles = 0;
-                    println!("setting ch2 volume = {:02x} {}", val, self.ch2_volume);
+                    //println!("setting ch2 volume = {:02x} {}", val, self.ch2_volume);
                 }
                 self.nr22
             }

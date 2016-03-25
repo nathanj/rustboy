@@ -221,7 +221,7 @@ fn main() {
     let mut event_pump = sdl_context.event_pump().unwrap();
     let mut fastforward = false;
     'running: loop {
-        if prevcycles % 1000000 < 10 {
+        if prevcycles % 10000000 < 10 {
             println!("cycles={}", prevcycles);
         }
 

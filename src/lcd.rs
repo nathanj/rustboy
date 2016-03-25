@@ -197,8 +197,6 @@ impl Lcd {
             (self.bgp & 0xc0) >> 6,
             ];
 
-        println!("wx={} wy={}", self.wx, self.wy);
-
         let tile_map_addr = self.get_window_tile_map_addr();
 
         for j in 0..19 {

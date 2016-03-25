@@ -1550,6 +1550,7 @@ impl Cpu {
                 pc += 1;
             },
             0x76 => {
+                my_log!(self,"halt");
                 self.halt = true;
                 pc += 1;
             },
