@@ -98,8 +98,8 @@ impl Lcd {
             let h = mm.read(j*2 + tile_start_addr + 1);
             for k in 0..8 {
                 let p = (((h & (1<<k)) >> k) << 1) | ((l & (1<<k)) >> k);
-                let xpos = if oam_flags & OAM_X_FLIP > 0 { x + k as i32 } else { x + 7 - k as i32 };
-                let ypos = if oam_flags & OAM_Y_FLIP > 0 { y + 7 - j as i32 } else { y + j as i32 };
+                let xpos = if (oam_flags & OAM_X_FLIP) > 0 { x + k as i32 } else { x + 7 - k as i32 };
+                let ypos = if (oam_flags & OAM_Y_FLIP) > 0 { y + 7 - j as i32 } else { y + j as i32 };
                 if p == 0 && oam {
                     continue
                 }
@@ -251,8 +251,13 @@ impl Lcd {
             if is_8x8 {
                 self.draw_oam_tile(mm, pixels, x, y, tile, flags);
             } else {
-                self.draw_oam_tile(mm, pixels, x, y,     tile & 0xfe, flags);
-                self.draw_oam_tile(mm, pixels, x, y + 8, tile | 0x01, flags);
+                if (flags & OAM_Y_FLIP) > 0 {
+                    self.draw_oam_tile(mm, pixels, x, y + 8, tile & 0xfe, flags);
+                    self.draw_oam_tile(mm, pixels, x, y,     tile | 0x01, flags);
+                } else {
+                    self.draw_oam_tile(mm, pixels, x, y,     tile & 0xfe, flags);
+                    self.draw_oam_tile(mm, pixels, x, y + 8, tile | 0x01, flags);
+                }
             }
         }
     }
