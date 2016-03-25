@@ -103,12 +103,12 @@ impl MemoryMap {
             },
             0x2000 ... 0x3fff => {
                 if write {
-                    //println!("rom bank number {:02x}", val);
                     if val == 0x00 || val == 0x20 || val == 0x40 || val == 0x60 {
                         self.rom_bank = val + 1;
                     } else {
                         self.rom_bank = val;
                     }
+                    println!("rom bank number {:02x}", self.rom_bank);
                 }
                 self.rom[addr as usize]
             },

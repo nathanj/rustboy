@@ -93,10 +93,7 @@ impl Joypad {
         }
 
         self.set_flags();
-
-        if mm.interrupt_master_enable {
-            mm.interrupt_flag |= interrupt::INTERRUPT_JOYPAD;
-        }
+        mm.interrupt_flag |= interrupt::INTERRUPT_JOYPAD;
     }
 
 }

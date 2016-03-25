@@ -66,7 +66,7 @@ impl Lcd {
     }
 
     fn interrupt_enabled(&self, int: u8, mm: &mem::MemoryMap) -> bool {
-        self.stat & int > 0 && mm.interrupt_master_enable
+        self.stat & int > 0
     }
 
     fn put_pixel(&self,

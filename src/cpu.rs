@@ -702,13 +702,16 @@ impl Cpu {
     }
 
     fn service_interrupt(&mut self, mm: &mut mem::MemoryMap, addr: u16) {
-        self.halt = false;
         let pc = self.pc;
         self.stack_write_u16(mm, pc);
         self.pc = addr;
     }
 
     fn service_interrupts(&mut self, mm: &mut mem::MemoryMap) {
+        if (mm.interrupt_enable & mm.interrupt_flag) > 0 {
+            self.halt = false;
+        }
+
         if mm.interrupt_triggered(interrupt::INTERRUPT_VBLANK) {
             my_log!(self,"interrupt vblank");
             self.service_interrupt(mm, 0x40);
@@ -857,7 +860,7 @@ impl Cpu {
                 pc += 1;
             },
             0x10 => {
-                panic!("stop");
+                trace!("stop");
                 // TODO
                 self.cycles += 4;
                 pc += 2;
@@ -1124,9 +1127,7 @@ impl Cpu {
             },
             0x33 => {
                 my_log!(self,"inc sp");
-                println!("old sp = {:04x}", self.sp);
                 self.sp = self.sp.wrapping_add(1);
-                println!("new sp = {:04x}", self.sp);
                 self.cycles += 8;
                 pc += 1;
             },
@@ -1551,6 +1552,7 @@ impl Cpu {
             },
             0x76 => {
                 my_log!(self,"halt");
+                let v = mm.read(0xff41);
                 self.halt = true;
                 pc += 1;
             },

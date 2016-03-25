@@ -80,14 +80,14 @@ fn cart_type_str(val: u8) -> &'static str {
 
 fn rom_size_str(val: u8) -> &'static str {
     match val {
-        0x00 => " 32KByte (no ROM banking)",
-        0x01 => " 64KByte (4 banks)",
+        0x00 => "32KByte (no ROM banking)",
+        0x01 => "64KByte (4 banks)",
         0x02 => "128KByte (8 banks)",
         0x03 => "256KByte (16 banks)",
         0x04 => "512KByte (32 banks)",
-        0x05 => "  1MByte (64 banks)  - only 63 banks used by MBC1",
-        0x06 => "  2MByte (128 banks) - only 125 banks used by MBC1",
-        0x07 => "  4MByte (256 banks)",
+        0x05 => "1MByte (64 banks)  - only 63 banks used by MBC1",
+        0x06 => "2MByte (128 banks) - only 125 banks used by MBC1",
+        0x07 => "4MByte (256 banks)",
         0x52 => "1.1MByte (72 banks)",
         0x53 => "1.2MByte (80 banks)",
         0x54 => "1.5MByte (96 banks)",
@@ -106,8 +106,6 @@ fn ram_size_str(val: u8) -> &'static str {
 }
 
 fn print_rom_info(rom: &Vec<u8>) {
-    println!("howdy!");
-
     let title = &rom[0x134..0x143];
     let mut s = String::new();
     for c in title {
@@ -149,7 +147,7 @@ fn main() {
         .unwrap();
     let mut renderer = window.renderer().build().unwrap();
     let mut texture = renderer.create_texture_streaming(PixelFormatEnum::RGB332, (160, 144)).unwrap();
-    let mut pixels: [u8; 160*144] = [0; 160*144];
+    let mut pixels: [u8; 160*144] = [255; 160*144];
     let pitch = 160;
     texture.update(None, &pixels, pitch).unwrap();
     renderer.copy(&texture, None, None);
@@ -178,7 +176,7 @@ fn main() {
         timer: timer.clone(),
         joypad: joypad.clone(),
         sound: sound.clone(),
-        rom_bank: 0,
+        rom_bank: 1,
     };
     let mut gb = Gameboy {
         cpu: cpu,
@@ -221,7 +219,7 @@ fn main() {
     let mut event_pump = sdl_context.event_pump().unwrap();
     let mut fastforward = false;
     'running: loop {
-        if prevcycles % 10000000 < 10 {
+        if prevcycles % 100000000 < 10 {
             println!("cycles={}", prevcycles);
         }
 
@@ -246,6 +244,8 @@ fn main() {
                         //gb.cpu.tracing = true;
                         println!("{:?}", gb.lcd.borrow());
                         gb.mm.dump(0x8000, 0xa000 - 0x8000);
+                        gb.mm.dump(0xfe00, 0x100);
+                        gb.mm.dump(0xff40, 0x20);
                         panic!("asdf");
                     }
                     Event::KeyUp { keycode: Some(Keycode::D), .. } => {

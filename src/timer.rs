@@ -61,12 +61,14 @@ impl Timer {
             self.last_tick -= cycles_per_tick;
             self.tima = self.tima.wrapping_add(1);
 
+                //println!("tima = {} flag={:02x} master={}!", self.tima, mm.interrupt_flag, mm.interrupt_master_enable);
             // handle overflow
             if self.tima == 0 {
+                //println!("time = 0!");
                 self.tima = self.tma;
-                if mm.interrupt_master_enable {
+                //if mm.interrupt_master_enable {
                     mm.interrupt_flag |= interrupt::INTERRUPT_TIMER;
-                }
+                //}
             }
         }
     }
