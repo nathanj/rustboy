@@ -17,6 +17,7 @@ pub struct MemoryMap {
     pub wram: [u8; 0x2000],
     pub hram: [u8; 0x80],
     pub eram: [u8; 0x2000],
+    pub eram_enabled: bool,
     pub iobuf: [u8; 0x100],
     pub oam: [u8; 0xa0],
     pub interrupt_enable : u8,
@@ -85,27 +86,42 @@ impl MemoryMap {
             // rom bank 0
             0 ... 0x1fff => {
                 if write {
-                    println!("eram enable {:02x}", val);
+                    if (val & 0xf) == 0xa {
+                        if !self.eram_enabled {
+                            println!("enabling eram");
+                            self.eram_enabled = true;
+                        }
+                    } else {
+                        if self.eram_enabled {
+                            println!("disabling eram");
+                            self.eram_enabled = false;
+                            self.save_eram();
+                        }
+                    }
                 }
                 self.rom[addr as usize]
             },
             0x2000 ... 0x3fff => {
                 if write {
-                    println!("rom bank number {:02x}", val);
-                    self.rom_bank = val;
+                    //println!("rom bank number {:02x}", val);
+                    if val == 0x00 || val == 0x20 || val == 0x40 || val == 0x60 {
+                        self.rom_bank = val + 1;
+                    } else {
+                        self.rom_bank = val;
+                    }
                 }
                 self.rom[addr as usize]
             },
             // rom bank n
             0x4000 ... 0x5fff => {
                 if write {
-                    println!("eram bank number {:02x}", val);
+                    //println!("eram bank number {:02x}", val);
                 }
                 self.rom[self.rom_bank as usize * 0x4000 + (addr - 0x4000) as usize]
             },
             0x6000 ... 0x7fff => {
                 if write {
-                    println!("rom/ram mode select {:02x}", val);
+                    //println!("rom/ram mode select {:02x}", val);
                 }
                 self.rom[self.rom_bank as usize * 0x4000 + (addr - 0x4000) as usize]
             },

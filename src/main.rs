@@ -85,6 +85,7 @@ fn main() {
         wram: [0; 0x2000],
         hram: [0; 0x80],
         eram: [0; 0x2000],
+        eram_enabled: false,
         iobuf: [0; 0x100],
         interrupt_enable: 0,
         interrupt_master_enable: false,
@@ -150,7 +151,6 @@ fn main() {
             for event in event_pump.poll_iter() {
                 match event {
                     Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-                        gb.mm.save_eram();
                         break 'running
                     },
                     Event::KeyDown { keycode: Some(Keycode::F), .. } => {
