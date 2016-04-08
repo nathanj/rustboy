@@ -61,7 +61,8 @@ impl fmt::Debug for Lcd {
 
 impl Lcd {
     pub fn new() -> Lcd {
-        let lcd: Lcd = Default::default();
+        let mut lcd: Lcd = Default::default();
+        lcd.ctl = 0x91;
         return lcd;
     }
 
@@ -275,6 +276,11 @@ impl Lcd {
         let prev_ly = self.ly;
         let mut vblank = false;
         self.cycles += cycles;
+
+        if (self.ctl & LCD_CTL_ENABLE) == 0 {
+            return false;
+        }
+
         match self.stat & LCD_STATUS_MODE {
             0 => {
                 if self.cycles > 201 {
@@ -307,6 +313,7 @@ impl Lcd {
                             mm.interrupt_flag |= interrupt::INTERRUPT_LCD_STAT;
                         }
                         if mm.interrupt_master_enable {
+                            println!("setting vblank interrupt. ime={} ie={}", mm.interrupt_master_enable, mm.interrupt_enable);
                             mm.interrupt_flag |= interrupt::INTERRUPT_VBLANK;
                         }
                         self.stat |= 1;
@@ -324,7 +331,8 @@ impl Lcd {
                     if self.interrupt_enabled(LCD_STATUS_LY_COINCIDENCE_INTERRUPT, mm) && self.ly == self.lyc {
                         mm.interrupt_flag |= interrupt::INTERRUPT_LCD_STAT;
                     }
-                    if self.ly == 0 {
+                    if self.ly == 155 {
+                        self.ly = 0;
                         self.stat &= !3;
                         if self.interrupt_enabled(LCD_STATUS_MODE_0_HBLANK_INTERRUPT, mm) {
                             mm.interrupt_flag |= interrupt::INTERRUPT_LCD_STAT;

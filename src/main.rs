@@ -218,17 +218,24 @@ fn main() {
     let mut start = time::now();
     let mut event_pump = sdl_context.event_pump().unwrap();
     let mut fastforward = false;
+    let mut drawcycles = 0u32;
     'running: loop {
         if prevcycles % 100000000 < 10 {
             println!("cycles={}", prevcycles);
         }
 
         let cycles = gb.cpu.run(&mut gb.mm);
+        drawcycles += cycles - prevcycles;
+        //if gb.cpu.tracing {
+        //    println!("{:?}", gb.lcd.borrow());
+        //}
         let vblank = gb.lcd.borrow_mut().run(&mut gb.mm, cycles - prevcycles, &mut pixels);
         gb.timer.borrow_mut().run(&mut gb.mm, cycles - prevcycles);
         gb.sound.write().unwrap().run(&mut gb.mm, cycles - prevcycles);
 
-        if vblank {
+        //println!("drawcycles={}", drawcycles);
+        if drawcycles > 70224 {
+            drawcycles -= 70224;
             for event in event_pump.poll_iter() {
                 match event {
                     Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {

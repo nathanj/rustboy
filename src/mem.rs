@@ -108,20 +108,21 @@ impl MemoryMap {
                     } else {
                         self.rom_bank = val;
                     }
-                    println!("rom bank number {:02x}", self.rom_bank);
+                    println!("rom bank number addr={:04x} {:02x}", addr, self.rom_bank);
                 }
                 self.rom[addr as usize]
             },
             // rom bank n
             0x4000 ... 0x5fff => {
                 if write {
-                    //println!("eram bank number {:02x}", val);
+                    println!("eram bank number addr={:04x} {:02x}", addr, val);
                 }
                 self.rom[self.rom_bank as usize * 0x4000 + (addr - 0x4000) as usize]
             },
             0x6000 ... 0x7fff => {
                 if write {
-                    //println!("rom/ram mode select {:02x}", val);
+                    println!("rom/ram mode select addr={:04x} {:02x}", addr, val);
+                    panic!("asdf");
                 }
                 self.rom[self.rom_bank as usize * 0x4000 + (addr - 0x4000) as usize]
             },
@@ -135,6 +136,9 @@ impl MemoryMap {
             // eram
             0xa000 ... 0xbfff => {
                 if write {
+                    if addr == 0xa24e {
+                        println!("writing a24e with val={:02x}", val);
+                    }
                     self.eram[addr as usize - 0xa000] = val;
                 }
                 self.eram[addr as usize - 0xa000]
@@ -179,6 +183,7 @@ impl MemoryMap {
             // interrupt_enable
             0xffff => {
                 if write {
+                    println!("setting interrupt_enable={:02x}", val);
                     self.interrupt_enable = val;
                 }
                 self.interrupt_enable
@@ -239,10 +244,12 @@ impl MemoryMap {
     }
 
     pub fn di(&mut self) {
+        println!("NJ di");
         self.interrupt_master_enable = false;
     }
 
     pub fn ei(&mut self) {
+        println!("NJ ei");
         self.interrupt_master_enable = true;
     }
 

@@ -79,7 +79,7 @@ impl Cpu {
         }
     }
 
-    fn af(&self) -> u16 {
+   fn af(&self) -> u16 {
         return (self.a as u16) << 8 | (self.f as u16);
     }
     fn set_af(&mut self, af: u16) {
@@ -736,8 +736,11 @@ impl Cpu {
 
     pub fn run(&mut self, mm: &mut mem::MemoryMap) -> u32 {
         let mut pc = self.pc;
+
+        self.tracing |= (mm.rom_bank == 0x1b);
+
         if self.tracing {
-            print!("{:?} ", self);
+            print!("{:?} ime={} ", self, mm.interrupt_master_enable);
         }
         if self.halt {
             self.cycles += 16;
