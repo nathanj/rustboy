@@ -108,7 +108,7 @@ impl MemoryMap {
                     } else {
                         self.rom_bank = val;
                     }
-                    println!("rom bank number {:02x}", self.rom_bank);
+                    //println!("rom bank number {:02x}", self.rom_bank);
                 }
                 self.rom[addr as usize]
             },

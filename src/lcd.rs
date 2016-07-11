@@ -236,7 +236,8 @@ impl Lcd {
     fn draw_oam(&self, mm: &mut mem::MemoryMap, pixels: &mut [u8; 160*144]) {
         let is_8x8 = (self.ctl & LCD_CTL_OBJ_SIZE) == 0;
 
-        for i in 0..40 {
+        for nn in 0..40 {
+            let i = 39 - nn;
             let y     = mm.read(0xfe00 + i*4 + 0);
             let x     = mm.read(0xfe00 + i*4 + 1);
             let tile  = mm.read(0xfe00 + i*4 + 2);

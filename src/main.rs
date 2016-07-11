@@ -17,7 +17,7 @@ use std::sync::Arc;
 use std::sync::RwLock;
 use std::thread;
 use std::vec;
-use time::Duration;
+use std::time::Duration;
 
 use sdl2::pixels::Color;
 use sdl2::pixels::PixelFormatEnum;
@@ -140,7 +140,7 @@ fn main() {
 
     // Initialize the video.
     let video_subsystem = sdl_context.video().unwrap();
-    let window = video_subsystem.window("rust-sdl2 demo: Video", 160*1, 144*1)
+    let window = video_subsystem.window("rust-sdl2 demo: Video", 160*3, 144*3)
         .position_centered()
         .opengl()
         .build()
@@ -205,6 +205,7 @@ fn main() {
             phase: 0.0,
             phase2: 0.0,
             phase3: 0.0,
+            phase4: 0.0,
             sound: sound.clone(),
             samples: vec![0; spec.samples as usize],
         }
@@ -269,10 +270,10 @@ fn main() {
             let end = time::now();
             let delta = end - start;
             start = end;
-            //println!("ms={}", delta.num_milliseconds());
+            println!("ms={}", delta.num_milliseconds());
 
             if !fastforward && delta.num_milliseconds() < 17 {
-                thread::sleep_ms(17 - delta.num_milliseconds() as u32);
+                std::thread::sleep(Duration::from_millis(17 as u64 - delta.num_milliseconds() as u64));
             }
         }
 

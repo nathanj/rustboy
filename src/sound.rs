@@ -49,6 +49,10 @@ pub struct Sound {
     pub nr43 : u8, // polynomial counter (r/w)
     pub nr44 : u8, // counter/consecutive; initial (r/w)
 
+    ch4_length_cycles : u32,
+    ch4_volume : u8,
+    ch4_envelope_cycles : u32,
+
     // sound control registers
     pub nr50 : u8, // channel control / on-off / volume (r/w)
     pub nr51 : u8, // selection of sound output terminal (r/w)
@@ -63,6 +67,7 @@ pub struct SoundPlayer {
     pub phase : f32,
     pub phase2 : f32,
     pub phase3 : f32,
+    pub phase4 : f32,
     pub sound : Arc<RwLock<Sound>>,
     pub samples : Vec<u8>,
 }
@@ -86,6 +91,7 @@ impl AudioCallback for SoundPlayer {
         self.handle_channel1();
         self.handle_channel2();
         self.handle_channel3();
+        self.handle_channel4();
 
         for i in 0..self.spec.samples {
             out[i as usize] = -1.0 + self.samples[i as usize] as f32 / 45.0;
@@ -124,6 +130,17 @@ impl fmt::Debug for Sound {
         self.nr51,
         self.nr52)
     }
+}
+
+fn pow(a: u32, b: u32) -> u32 {
+    let mut x = a;
+    if b == 0 {
+        return 1;
+    }
+    for i in 0..b {
+        x *= a;
+    }
+    x
 }
 
 impl SoundPlayer {
@@ -216,6 +233,32 @@ impl SoundPlayer {
         }
     }
 
+    fn handle_channel4(&mut self) {
+        let mut sound = self.sound.write().unwrap();
+
+        if sound.ch4_volume == 0 {
+            return;
+        }
+
+        let s = (sound.nr43 as u32 & 0xf0) >> 4;
+        let mut r = (sound.nr43 as u32 & 0b111) as f32;
+        if r == 0.0 { r = 0.5; }
+        let mut p = pow(2, s);
+        if p == 0 { p = 1; }
+        let freq = 524288 as f32 / r / p as f32;
+        let phase_inc = freq as f32 / self.spec.freq as f32;
+
+        println!("ch 4 vol={}", sound.ch4_volume);
+
+        for x in self.samples.iter_mut() {
+            self.phase4 += phase_inc;
+            if self.phase4 >= 1.0 {
+                self.phase4 %= 1.0;
+                *x += sound.ch4_volume;
+            }
+        }
+    }
+
 }
 
 impl Sound {
@@ -248,6 +291,9 @@ impl Sound {
             nr42 : 0,
             nr43 : 0,
             nr44 : 0,
+            ch4_length_cycles : 0,
+            ch4_volume : 0,
+            ch4_envelope_cycles : 0,
             nr50 : 0,
             nr51 : 0,
             nr52 : 0,
@@ -277,6 +323,18 @@ impl Sound {
                 if self.ch2_length_cycles > n {
                     //println!("ch2 handling length");
                     self.ch2_volume = 0;
+                }
+            }
+        }
+        
+        // channel 4 length
+        {
+            let n = (64 - (self.nr41 & 0x3f) as u32) * 16384; // 1/256 sec
+            if n > 0 && (self.nr44 & 0x40) > 0 {
+                self.ch4_length_cycles += cycles;
+                if self.ch4_length_cycles > n {
+                    //println!("ch4 handling length");
+                    self.ch4_volume = 0;
                 }
             }
         }
@@ -319,6 +377,27 @@ impl Sound {
                             self.ch2_volume -= 1;
                         }
                     }
+                }
+            }
+        }
+
+        // channel 4 envelope
+        {
+            let n = (self.nr42 & 0b111) as u32 * 65536; // 1/64 sec
+            if n > 0 {
+                self.ch4_envelope_cycles += cycles;
+                if self.ch4_envelope_cycles > n {
+                    self.ch4_envelope_cycles -= n;
+                    if self.nr42 & 0b1000 > 0 {
+                        if self.ch4_volume < 0xf {
+                            self.ch4_volume += 1;
+                        }
+                    } else {
+                        if self.ch4_volume > 0 {
+                            self.ch4_volume -= 1;
+                        }
+                    }
+                    //println!("ch4 handling envelope new vol={}", self.ch4_volume);
                 }
             }
         }
@@ -376,10 +455,18 @@ impl Sound {
             0xff1e => { if write { self.nr34 = val; } self.nr34 }
 
             // channel 4
-            0xff20 => { if write { self.nr41 = val; } self.nr41 }
-            0xff21 => { if write { self.nr42 = val; } self.nr42 }
-            0xff22 => { if write { self.nr43 = val; } self.nr43 }
-            0xff23 => { if write { self.nr44 = val; } self.nr44 }
+            0xff20 => { if write { self.nr41 = val; println!("wrote nr41={:02x}", self.nr41); } self.nr41 }
+            0xff21 => {
+                if write {
+                    self.nr42 = val;
+                    self.ch4_volume = (val & 0xf0) >> 4;
+                    self.ch4_length_cycles = 0;
+                    println!("wrote nr42={:02x}", self.nr42);
+                }
+                self.nr42
+            }
+            0xff22 => { if write { self.nr43 = val; println!("wrote nr43={:02x}", self.nr43); } self.nr43 }
+            0xff23 => { if write { self.nr44 = val; println!("wrote nr44={:02x}", self.nr44); } self.nr44 }
 
             // sound control
             0xff24 => { if write { self.nr50 = val; } self.nr50 }
